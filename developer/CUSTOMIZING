@@ -1,0 +1,29 @@
+Options Numerics: CUSTOMIZING
+
+Copyright (C) 2023  Johnathan K Burchill
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, version 3 of the License.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
+
+Various hard-coded configuration options are set in on_config.h.
+
+
+To add a new command, take these steps:
+
+1. Add an entry to initCommands[] in on_commands.c similar to the other commands. Follow the declarations of Command in on_commands.h and CommandExample in on_examples.h.
+
+2. Increment NCOMMANDS in commands.h
+
+3. Declare the new command in on_function.h of the form "FunctionValue functionName(FunctionValue arg);"
+
+4. Add a definition for "functionName" somewhere, e.g. in on_functions.c.
+
+8. Compile, then test the full and short versions of the command and test the example.
