@@ -149,6 +149,7 @@ void forgetEverying(void)
     for (int i = 0; i < numberOfThingsRemembered; i++)
     {
         free(thingsRemembered[i].thing);
+        thingsRemembered[i].thing = NULL;
         thingsRemembered[i].timesRemembered = 0;
     }
     numberOfThingsRemembered = 0;
