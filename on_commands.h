@@ -24,7 +24,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
-#define NCOMMANDS 25
+#define NCOMMANDS 26
 
 typedef struct commandExample
 {
@@ -58,7 +58,7 @@ int initCommands(void);
 void freeCommands(void);
 
 void memorize(char *this);
-void forgetEverying(void);
+void forgetEverything(void);
 const char *recallPrevious(void);
 const char *recallNext(void);
 const char *recallMostUsed(void);

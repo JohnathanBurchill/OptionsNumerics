@@ -59,6 +59,7 @@ FunctionValue helpFunction(FunctionValue arg);
 // Calculator
 FunctionValue blackScholesOptionPriceFunction(FunctionValue arg);
 FunctionValue binomialOptionPriceFunction(FunctionValue arg);
+FunctionValue optionsTimeDecayFunction(FunctionValue arg);
 
 FunctionValue geeksFunction(FunctionValue arg);
 FunctionValue impliedVolatilityFunction(FunctionValue arg);
@@ -82,7 +83,5 @@ FunctionValue questradeConnectionFunction(FunctionValue arg);
 FunctionValue optionsIncomeReinvestedFunction(FunctionValue arg);
 
 FunctionValue optionsExerciseChanceFunction(FunctionValue arg);
-
-
 
 #endif // _ON_FUNCTIONS_H

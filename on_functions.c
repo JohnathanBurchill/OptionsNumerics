@@ -124,7 +124,8 @@ FunctionValue blackScholesOptionPriceFunction(FunctionValue arg)
     OptionType otype = CALL;
     if (type == 'P')
         otype = PUT;
-    optionValue = blackscholes_option_value(S, K, r / 100.0, sigma / 100.0, yearsToExpire, otype);
+    Option opt = {S, K, r/100.0, 0.0, sigma/100.0, yearsToExpire};
+    optionValue = blackscholes_option_value(opt, otype);
 
     bookValue = S - K;
     if (type == PUT)
@@ -197,7 +198,81 @@ FunctionValue binomialOptionPriceFunction(FunctionValue arg)
     print(mainWindow, "%25s: $%.2lf (%.1lf%%)\n", "Book value", bookValue, bookValue / optionValue * 100.0);
 
     print(mainWindow, "%25s: $%.2lf (%.1lf%%)\n", "Time value", timeValue, timeValue / optionValue * 100.0);
-    print(mainWindow, "%25s: $%.2lf\n", otype == CALL ? "Call value" : "Put value", optionValue);
+    print(mainWindow, "%25s: $%.4lf\n", otype == CALL ? "Call value" : "Put value", optionValue);
+
+    return FV_OK;
+}
+
+FunctionValue optionsTimeDecayFunction(FunctionValue arg)
+{
+    char *params = arg.charStarValue;
+    double S, K, r, q, sigma, optionValue, bookValue, timeValue;
+    int year = 0, month = 0, day = 0;
+    int daysToExpire = 0;
+    double yearsToExpire = 0.0;
+    char type = 0;
+    char exerciseMethod = 0;
+
+    // Estimate call or put value from parameters
+    char *parameters = NULL;
+    if (params != NULL)
+        parameters = strdup(params);
+    else
+        parameters = readInput(mainWindow, "  parameters: ", ON_READINPUT_ALL);
+    if (!parameters)
+        return FV_NOTOK;
+
+    if (params == NULL && parameters[0] != 0)
+        memorize(parameters);
+
+    int nParams = sscanf(parameters, "X:%c,T:%c,S:%lf,E:%4d-%02d-%02d,V:%lf,R:%lf,Q:%lf,P:%lf", &exerciseMethod, &type, &K, &year, &month, &day, &sigma, &r, &q, &S);
+    free(parameters);
+    if (nParams != 10)
+    {
+        print(mainWindow, "parameters: X:<A(merican) or E(european)>,T:<C or P>,S:<strike>,E:<yyyy-mm-dd>,V:<volatility %%>,R:<risk-free-rate %%>,Q:<dividend-yield %%>,P:<underlying-price>\n");
+        return FV_NOTOK;
+    }
+
+    double (*algorithm) (Option, OptionType) = NULL;
+    switch(exerciseMethod)
+    {
+        case 'E':
+            algorithm = blackscholes_option_value;
+            break;
+
+        case 'A':
+            algorithm = binomial_option_value;
+            break;
+
+        default:
+            print(mainWindow, "Supported exercise methods: E for European and A for American\n");
+            return FV_NOTOK;
+    }
+
+    // Not counting weekends. Does not account for holidays
+    Date date = {year, month, day};
+    daysToExpire = tradingDaysToExpiry(date);
+
+    if (exerciseMethod == 'E')
+        q = 0.0;
+
+    Option opt = {S, K, r / 100.0, q / 100.0, sigma / 100.0, 0};
+    double price = 0;
+
+    OptionType otype = CALL;
+    if (type == 'P')
+        otype = PUT;
+
+    print(mainWindow, "Days to go\tprice\n");
+
+
+    while (daysToExpire > 0)
+    {
+        opt.T = (double)daysToExpire / (double)OPTIONS_TRADING_DAYS_PER_YEAR;
+        price = algorithm(opt, otype);
+        print(mainWindow, "%10d\t%8.3lf\n", daysToExpire, price);
+        daysToExpire--;
+    }
 
     return FV_OK;
 }
@@ -954,3 +1029,4 @@ FunctionValue optionsExerciseChanceFunction(FunctionValue arg)
     free(ticker);
     return FV_OK;
 }
+

@@ -19,18 +19,6 @@
 
 #include "on_data.h"
 
-// Black-Scholes
-double cdf(double x);
-double d1(double S, double K, double r, double sigma, double t);
-double d2(double S, double K, double r, double sigma, double t);
-double blackscholes_option_value(double S, double K, double r, double sigma, double t, OptionType type);
-
-// Binomial no dividend
-
-#define BINOMIAL_N_STEPS 300
-#define IV_MAX_ITERATIONS 500
-#define IV_MAX_PRICE_DIFFERENCE 0.000001
-
 typedef struct {
     double S; // Security price
     double K; // Strike
@@ -40,8 +28,22 @@ typedef struct {
     double T; // Trading years until expiration (assume 251 trading days per year)
 } Option;
 
+// Black-Scholes
+double cdf(double x);
+double d1(double S, double K, double r, double sigma, double t);
+double d2(double d1Val, double sigma, double t);
+double blackscholes_option_value(Option opt, OptionType type);
+
+// Binomial no dividend
+
+#define BINOMIAL_N_STEPS 1000
+#define IV_MAX_ITERATIONS 500
+#define IV_MAX_PRICE_DIFFERENCE 0.000001
+
 double binomial_option_value(Option opt, OptionType type);
+double option_geeks(Option opt, OptionType type, char *geek, double (*optionValueFunction)(Option, OptionType));
 double binomial_option_geeks(Option opt, OptionType type, char *geek);
+double black_scholes_option_geeks(Option opt, OptionType type, char *geek);
 int binomial_option_implied_volatility(Option opt, OptionType type, double actualPrice, double *impliedVolatility);
 
 #endif // _ON_OPTIONSMODELS_H

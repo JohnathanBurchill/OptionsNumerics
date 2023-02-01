@@ -51,6 +51,8 @@ int initCommands(void)
 
         {"Calculator", "american_option", "ao", "prints American option value for specified parameters, including dividend yield; uses binomial model", "american_option T:<C or P>,S:<strike-price>,E:<expiry-date>,V:<underlying-share-volatility-%%>,R:<risk-free-rate-%%>,Q:<dividend-yield-%%>,P:<underlying-share-price>", binomialOptionPriceFunction, FUNCTION_CHARSTAR, FUNCTION_STATUS_CODE, {"American option price:", "T:C,S:16,E:%d-%02d-%02d,V:79.3,R:4.3,Q:0,P:20", "+12f", true}, false},
 
+        {"Calculator", "time_decay", "td", "prints option price for each remaining trading day given specified parameters", "time_decay X:<A(merican) or E(european)>,T:<C or P>,S:<strike-price>,E:<expiry-date>,V:<underlying-share-volatility-%%>,R:<risk-free-rate-%%>,Q:<dividend-yield-%%>,P:<underlying-share-price>", optionsTimeDecayFunction, FUNCTION_CHARSTAR, FUNCTION_STATUS_CODE, {"American-style exercise option price versus time:", "X:A,T:C,S:16,E:%d-%02d-%02d,V:79.3,R:4.3,Q:0,P:20", "+4f", true}, false},
+
         {"Calculator", "greeks", "gx", "prints greeks using binomial option model", "greeks G:<t(theta), v(ega), d(elta), g(amma), or a(ll)>,T:<C(all) or P(ut)>,S:<strike-price>,E:<expiry-date>,V:<underlying-share-volatility-%%>,R:<risk-free-rate>,Q:<dividend-yield-%%>,P:<underlying-share-price>", geeksFunction, FUNCTION_CHARSTAR, FUNCTION_STATUS_CODE, {"All greeks:", "G:a,T:C,S:16,E:%d-%02d-%02d,V:80,R:4.31,Q:0,P:20", "+12f", true}, false},
 
         {"Calculator", "implied_volatility", "iv", "prints implied volatility using binomial option model", "implied_volatility T:<C(all) or P(ut)>,S:<strike-price>,E:<expiry-date>, R:<risk-free-rate>,Q:<dividend-yield-%%>,P:<underlying-share-price>,B:<underlying-share-bid>,A:<underlying-share-ask>", impliedVolatilityFunction, FUNCTION_CHARSTAR, FUNCTION_STATUS_CODE, {"Bid and ask implied volatilities for an American option:", "T:C,S:16,E:%d-%02d-%02d,R:4.31,Q:0,P:20,B:5.70,A:6.30", "+12f", true}, false},
@@ -144,7 +146,7 @@ void memorize(char *this)
     return;
 }
 
-void forgetEverying(void)
+void forgetEverything(void)
 {
     for (int i = 0; i < numberOfThingsRemembered; i++)
     {

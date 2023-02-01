@@ -38,23 +38,23 @@ double cdf(double x)
 
 double d1(double S, double K, double r, double sigma, double t)
 {
-    return (log(S / K) + (r + sigma * sigma / 2) * t) / (sigma * sqrt(t));
+    return (log(S / K) + (r + sigma * sigma / 2.0) * t) / (sigma * sqrt(t));
 }
 
-double d2(double S, double K, double r, double sigma, double t)
+double d2(double d1Val, double sigma, double t)
 {
-    return d1(S, K, r, sigma, t) - sigma * sqrt(t);
+    return d1Val - sigma * sqrt(t);
 }
 
-double blackscholes_option_value(double S, double K, double r, double sigma, double t, OptionType type)
+double blackscholes_option_value(Option opt, OptionType type)
 {
-    double d_1 = d1(S, K, r, sigma, t);
-    double d_2 = d2(S, K, r, sigma, t);
+    double d_1 = d1(opt.S, opt.K, opt.r, opt.v, opt.T);
+    double d_2 = d2(d_1, opt.v, opt.T);
     double price = 0.0;
     if (type == CALL)
-        price = S * cdf(d_1) - K * exp(-r * t) * cdf(d_2);
+        price = opt.S * cdf(d_1) - opt.K * exp(-opt.r * opt.T) * cdf(d_2);
     else
-        price = K * exp(-r * t) * cdf(-d_2) - S * cdf(-d_1);
+        price = opt.K * exp(-opt.r * opt.T) * cdf(-d_2) - opt.S * cdf(-d_1);
 
     return price;
 }
@@ -146,14 +146,14 @@ int binomial_option_implied_volatility(Option opt, OptionType type, double actua
     return 0;
 }
 
-double binomial_option_geeks(Option opt, OptionType type, char *geek)
+double option_geeks(Option opt, OptionType type, char *geek, double (*optionValueFunction)(Option, OptionType))
 {
     if (geek == NULL)
         return nan("");
 
     Option derivOpt = opt;
 
-    double value0 = binomial_option_value(derivOpt, type);
+    double value0 = optionValueFunction(derivOpt, type);
     double valueminus = 0;
     double valueplus = 0;
     double dx = 0;
@@ -164,26 +164,26 @@ double binomial_option_geeks(Option opt, OptionType type, char *geek)
         dx = 0.5 * 1.0 / OPTIONS_TRADING_DAYS_PER_YEAR;
         factor = 1.0 / OPTIONS_TRADING_DAYS_PER_YEAR;
         derivOpt.T += dx;
-        valueminus = binomial_option_value(derivOpt, type);
+        valueminus = optionValueFunction(derivOpt, type);
         derivOpt.T -= 2*dx;
-        valueplus = binomial_option_value(derivOpt, type);
+        valueplus = optionValueFunction(derivOpt, type);
     }
     else if (strcasecmp("d$dV", geek) == 0)
     {
         dx = 0.001;
         factor = 1.0 / 100.0; // per %
         derivOpt.v += dx;
-        valueplus = binomial_option_value(derivOpt, type);
+        valueplus = optionValueFunction(derivOpt, type);
         derivOpt.v -= 2*dx;
-        valueminus = binomial_option_value(derivOpt, type);
+        valueminus = optionValueFunction(derivOpt, type);
     }
     else if (strcasecmp("d$dP", geek) == 0)
     {
         dx = fmax(0.01, fmin(0.1, 0.1 * opt.S));
         derivOpt.S += dx;
-        valueplus = binomial_option_value(derivOpt, type);        
+        valueplus = optionValueFunction(derivOpt, type);        
         derivOpt.S -= 2*dx;
-        valueminus = binomial_option_value(derivOpt, type);        
+        valueminus = optionValueFunction(derivOpt, type);        
     }
     else if (strcasecmp("d2$dP2", geek) == 0)
     {
@@ -201,4 +201,14 @@ double binomial_option_geeks(Option opt, OptionType type, char *geek)
     double deriv = factor * ((valueplus - value0)/dx + (value0 - valueminus)/dx) / 2.0;
 
     return deriv;
+}
+
+double binomial_option_geeks(Option opt, OptionType type, char *geek)
+{
+    return option_geeks(opt, type, geek, binomial_option_value);
+}
+
+double black_scholes_option_geeks(Option opt, OptionType type, char *geek)
+{
+    return option_geeks(opt, type, geek, blackscholes_option_value);
 }

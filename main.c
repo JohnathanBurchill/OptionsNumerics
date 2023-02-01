@@ -167,7 +167,7 @@ int main(void)
     curl_global_cleanup();
 
     writeDownThingsToRemember();
-    forgetEverying();
+    forgetEverything();
 
     freeCommands();
 
