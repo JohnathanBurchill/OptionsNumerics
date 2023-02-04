@@ -21,6 +21,9 @@
 #include "on_remote.h"
 #include "on_data.h"
 #include "on_screen_io.h"
+#include "on_optionstiming.h"
+#include "on_optionsmodels.h"
+#include "on_utilities.h"
 
 #include <string.h>
 #include <curl/curl.h>
@@ -167,7 +170,7 @@ int fredSOFR(double *sofr)
     }
 
     long httpCode = 0;
-    int status = 0;
+    int status = ON_FRED_NO_DATA;
 
     curl = curl_easy_init();
 
@@ -195,7 +198,6 @@ int fredSOFR(double *sofr)
         if (res != CURLE_OK)
         {
             mvwprintw(statusWindow, 0, 0, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
-            status = 1;
             goto cleanup;
         }
 
@@ -219,20 +221,22 @@ int fredSOFR(double *sofr)
                 entry = json_array_get(observations, i);
                 if (!json_is_object(entry))
                 {
-                    print(mainWindow, "Invalid JSON entry %d\n", i);
                     goto cleanup;
                 }
                 date = json_string_value(json_object_get(entry, "date"));
                 rateStr = json_string_value(json_object_get(entry, "value"));
                 if (rateStr != NULL)
+                {
+                    status = ON_FRED_OK;
                     rate = atof(rateStr);
+                }
                 else
                     rate = nan("");
 
-                print(mainWindow, "  FRED SOFR on %s: %g%%\n", date, rate);
                 if (sofr != NULL)
                     *sofr = rate;                
-
+                else
+                    print(mainWindow, "  FRED SOFR on %s: %g%%\n", date, rate);
             }
         }
 
@@ -245,7 +249,7 @@ int fredSOFR(double *sofr)
     bzero(token, strlen(token));
     free(token);
 
-    return 0;
+    return status;
 }
 
 json_t *polygonIoRESTRequest(const char *requestUrl)
@@ -514,8 +518,12 @@ int polygonIoOptionsChain(char *ticker, char type, double minstrike, double maxs
 int polygonIoLatestPrice(char *ticker, TickerData *tickerData, OptionsData *optionsData, bool verbose)
 {
     char url[URL_BUFFER_SIZE] = {0};
+
+    int market = STOCKS;
+
     if (strncmp("O:", ticker, 2) == 0)
     {
+        market = OPTIONS;
         char *underlying = strdup(ticker + 2);
         char *p = underlying;
         while (p && !isdigit(*p))
@@ -526,9 +534,15 @@ int polygonIoLatestPrice(char *ticker, TickerData *tickerData, OptionsData *opti
         free(underlying);
     }
     else if (strncmp("C:", ticker, 2) == 0)
+    {
+        market = FOREX;
         sprintf(url, "https://api.polygon.io/v2/snapshot/locale/global/markets/forex/tickers/%s", ticker);
+    }
     else if (strncmp("X:", ticker, 2) == 0)
+    {
+        market = CRYPTO;
         sprintf(url, "https://api.polygon.io/v2/snapshot/locale/global/markets/crypto/tickers/%s", ticker);
+    }
     else
         sprintf(url, "https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/tickers/%s", ticker);
 
@@ -536,176 +550,158 @@ int polygonIoLatestPrice(char *ticker, TickerData *tickerData, OptionsData *opti
     if (root == NULL)
         return 1;
 
-    json_t *results = json_object_get(root, "results");
-    if (results == NULL)
-        return 1;
+    int status = 0;
 
-    double tday = 0;
-    time_t tday_secs = 0;
-    struct tm *tday_data = NULL;
-    double tlastquote = 0;
-    time_t tlastquote_secs = 0;
-    struct tm *tlastquote_data = NULL;
-
-    double volume = 0;
-    double vwap = 0;
-    double open = 0;
-    double high = 0;
-    double low = 0;
-    double close = 0;
-    int nTransactions = 0;
-            
-    char *type = NULL;
-    char *expirationDate = NULL;
-    double strike = 0;
-
-    double bid = 0;
-    double bidsize = 0;
-    double ask = 0;
-    double asksize = 0;
-    double midpoint = 0;
-
-    char *underlyingTicker = NULL;
-    double underlyingPrice = 0;
-    double tunderlying = 0;
-    time_t tunderlying_secs = 0;
-    struct tm *tunderlying_data = NULL;
-
-    double theta = 0;
-    double vega = 0;
-    double delta = 0;
-    double gamma = 0;
-
-    double openInterest = 0;
-    double impliedVolatility = 0;
-
-    json_t *quote = json_object_get(results, "last_quote");
-    if (!json_is_object(quote))
+    switch(market)
     {
-        print(mainWindow, "Invalid JSON for last_quote\n");
-        json_decref(root);
-        return 2;
-    }
-
-    bid = json_number_value(json_object_get(quote, "bid"));
-    bidsize = json_number_value(json_object_get(quote, "bid_size"));
-    ask = json_number_value(json_object_get(quote, "ask"));
-    asksize = json_number_value(json_object_get(quote, "ask_size"));
-    midpoint = json_number_value(json_object_get(quote, "midpoint"));
-    tlastquote = json_number_value(json_object_get(quote, "last_updated")) / 1e9;
-    tlastquote_secs = floor(tlastquote);
-
-    json_t *detailsItem = json_object_get(results, "details");
-    type = (char *)json_string_value(json_object_get(detailsItem, "contract_type"));
-    strike = json_number_value(json_object_get(detailsItem, "strike_price"));
-    expirationDate = (char *)json_string_value(json_object_get(detailsItem, "expiration_date"));
-
-    json_t *dayItem = json_object_get(results, "day");
-    open = json_number_value(json_object_get(dayItem, "open"));
-    high = json_number_value(json_object_get(dayItem, "high"));
-    low = json_number_value(json_object_get(dayItem, "low"));
-    close = json_number_value(json_object_get(dayItem, "close"));
-    volume = json_number_value(json_object_get(dayItem, "volume"));
-    vwap = json_number_value(json_object_get(dayItem, "vwap"));
-    tday = json_number_value(json_object_get(dayItem, "last_updated")) / 1e9;
-    tday_secs = floor(tday);
-
-    tlastquote_data = localtime(&tlastquote_secs);
-    if (verbose)
-    {
-        print(mainWindow, "Latest quote at %4d-%02d-%02d %02d:%02d:%02d.%06.0lf\n", tlastquote_data->tm_year+1900, tlastquote_data->tm_mon + 1, tlastquote_data->tm_mday, tlastquote_data->tm_hour, tlastquote_data->tm_min, tlastquote_data->tm_sec, floor(1e6*(tlastquote - (double)tlastquote_secs)));
-        print(mainWindow, "  %d bidding $%.3lf --> $%.3lf <-- %d asking $%.3lf\n", (int)bidsize, bid, midpoint,(int)asksize,  ask);
-    }
-    if (tickerData != NULL && strncasecmp("O:", ticker, 2) != 0)
-    {
-        tickerData->ticker = strdup(ticker);
-        tickerData->lastUpdatedSeconds = tday;
-        tickerData->volume = volume;
-        tickerData->vwap = vwap;
-        tickerData->open = open;
-        tickerData->high = high;
-        tickerData->low = low;
-        tickerData->close = close;
-        tickerData->nTransactions = nTransactions;
-        tickerData->quote.ticker = strdup(ticker);
-        tickerData->quote.lastUpdatedSeconds = tlastquote;
-        tickerData->quote.bid = bid;
-        tickerData->quote.bidsize = bidsize;
-        tickerData->quote.ask = ask;
-        tickerData->quote.asksize = asksize;
-        tickerData->quote.midpoint = midpoint;
-    }
-    if (strncasecmp("O:", ticker, 2) == 0)
-    {
-        json_t *greeks = json_object_get(results, "greeks");
-        theta = json_number_value(json_object_get(greeks, "theta"));
-        vega = json_number_value(json_object_get(greeks, "vega"));
-        delta = json_number_value(json_object_get(greeks, "delta"));
-        gamma = json_number_value(json_object_get(greeks, "gamma"));
-
-        openInterest = json_number_value(json_object_get(results, "open_interest"));
-        impliedVolatility = json_number_value(json_object_get(results, "implied_volatility"));
-        if (verbose)
-        {
-            print(mainWindow, "  volume: %.0lf, open interest: %.0lf\n", volume, openInterest);
-            print(mainWindow, "  vwap: %.2lf, open: %.2lf, high: %.2lf, low: %.2lf, close: %.2lf\n", vwap, open, high, low, close);
-            print(mainWindow, "  greeks T: $%.4lf/day V: $%.4lf/%% D: $%.4lf/$ G: $%.4lf/$/$\n", theta, vega, delta, gamma);
-            print(mainWindow, "  implied volatility: %.2lf%%\n", impliedVolatility * 100);
-        }
-
-        json_t *underlyingItem = json_object_get(results, "underlying_asset");
-        underlyingTicker = (char *)json_string_value(json_object_get(underlyingItem, "ticker"));
-        underlyingPrice = json_number_value(json_object_get(underlyingItem, "price"));
-        tunderlying = json_number_value(json_object_get(underlyingItem, "last_updated")) / 1e9;
-        tunderlying_secs = floor(tunderlying);
-
-        tunderlying_data = localtime(&tunderlying_secs);
-        if (verbose)
-        {
-            print(mainWindow, "  %s $%.3lf at %4d-%02d-%02d %02d:%02d:%02d.%06.0lf\n", underlyingTicker, underlyingPrice, tunderlying_data->tm_year+1900, tunderlying_data->tm_mon + 1, tunderlying_data->tm_mday, tunderlying_data->tm_hour, tunderlying_data->tm_min, tunderlying_data->tm_sec, floor(1e6*(tunderlying - (double)tunderlying_secs)));
-        }
-        if (optionsData != NULL)
-        {
-            optionsData->ticker = strdup(ticker);
-            optionsData->lastUpdatedSeconds = tday;
-
-            optionsData->underlyingTickerData.ticker = strdup(underlyingTicker);
-            optionsData->underlyingTickerData.close = underlyingPrice;
-            optionsData->underlyingTickerData.lastUpdatedSeconds = tunderlying;
-
-            optionsData->type = strcasecmp("call", type) == 0 ? CALL : PUT;
-            optionsData->strike = strike;
-            interpretDate(expirationDate, &optionsData->expiry);
-
-            optionsData->tickerData.volume = volume;
-            optionsData->tickerData.vwap = vwap;
-            optionsData->tickerData.open = open;
-            optionsData->tickerData.high = high;
-            optionsData->tickerData.low = low;
-            optionsData->tickerData.close = close;
-            optionsData->tickerData.nTransactions = nTransactions;
-            optionsData->tickerData.quote.ticker = strdup(ticker);
-            optionsData->quote.lastUpdatedSeconds = tlastquote;
-            optionsData->quote.bid = bid;
-            optionsData->quote.bidsize = bidsize;
-            optionsData->quote.ask = ask;
-            optionsData->quote.asksize = asksize;
-            optionsData->quote.midpoint = midpoint;
-
-            optionsData->theta = theta;
-            optionsData->vega = vega;
-            optionsData->delta = delta;
-            optionsData->gamma = gamma;
-
-            optionsData->openInterest = openInterest;
-            optionsData->impliedVolatility = impliedVolatility;
-
-        }
+        case STOCKS:
+            status = printLatestPriceStocks(root);
+            break;
+        case OPTIONS:
+            status = printLatestPriceOptions(root);
+            break;
     }
 
     json_decref(root);
 
-    return 0;
+    return status;
+}
+
+int printLatestPriceStocks(json_t *root)
+{
+
+    if (!json_is_object(root))
+        return ON_PIO_INVALID_RESPONSE;
+
+    int status = ON_PIO_OK;
+
+    json_t *ticker = json_object_get(root, "ticker");    
+    if (!json_is_object(ticker))
+        return ON_PIO_NO_STOCK_TICKER;
+
+    char *tickerName = (char *)json_string_value(json_object_get(ticker, "ticker"));
+    if (tickerName == NULL || strlen(tickerName) == 0)
+        return ON_PIO_NO_STOCK_TICKER_NAME;
+
+    double updatetime = json_number_value(json_object_get(ticker, "updated"));
+    double change = json_number_value(json_object_get(ticker, "todaysChange"));
+    double changePercent = json_number_value(json_object_get(ticker, "todaysChangePerc"));
+    double mdailyVolume = 0.0;
+    double mclose = 0.0;
+
+    // json_t *day = json_object_get(ticker, "day");
+    // json_t *prevDay = json_object_get(ticker, "prevDay");
+    // json_t *quote = json_object_get(ticker, "lastQuote");
+    // json_t *trade = json_object_get(ticker, "lastTrade");
+
+    json_t *minuteData = json_object_get(ticker, "min");
+    if (json_is_object(minuteData))
+    {
+        mdailyVolume = json_number_value(json_object_get(minuteData, "av"));
+        mclose = json_number_value(json_object_get(minuteData, "c"));
+        char *t = nanoSecondsAsStringMustFree(updatetime);
+
+        print(mainWindow, "%5s $%.3lf ($%+.3lf, %.2lf%%) Vol: %.0lf @ %s\n", tickerName, mclose, change, changePercent, mdailyVolume, t == NULL ? "? UTC" : t);
+
+        free(t);
+    }
+    else
+        status |= ON_PIO_NO_STOCK_MINUTE_DATA;
+
+    return status;
+
+}
+
+int printLatestPriceOptions(json_t *root)
+{
+    if (!json_is_object(root))
+        return ON_PIO_INVALID_RESPONSE;
+
+    int status = ON_PIO_OK;
+
+    json_t *results = json_object_get(root, "results");    
+    if (!json_is_object(results))
+        return ON_PIO_NO_OPTIONS_RESULTS;
+
+    double oi = json_number_value(json_object_get(results, "open_interest"));
+
+    json_t *details = json_object_get(results, "details");
+    if (!json_is_object(details))
+        return ON_PIO_NO_OPTIONS_DETAILS;
+        
+    char *tickerName = (char *)json_string_value(json_object_get(details, "ticker"));
+    double strike = json_number_value(json_object_get(details, "strike_price"));
+    char *expiry = (char *)json_string_value(json_object_get(details, "expiration_date"));
+    char *otype = (char *)json_string_value(json_object_get(details, "contract_type"));
+    OptionType type = OTHER;
+    if (strcmp("call", otype) == 0)
+        type = CALL;
+    else if (strcmp("put", otype) == 0)
+        type = PUT;
+
+    Date expiryDate = {0};
+    interpretDate(expiry, &expiryDate);
+    int daysLeft = tradingDaysToExpiry(expiryDate);
+    double yearsLeft = (double)daysLeft / (double)OPTIONS_TRADING_DAYS_PER_YEAR;
+
+    double close = 0.0;
+    double volume = 0.0;
+    double prevClose = 0.0;
+    double uprice = 0.0;
+    double uvolatility = 0.0;
+    double impliedVolatility = 0.0;
+
+    json_t *day = json_object_get(results, "day");
+    if (!json_is_object(day))
+        return ON_PIO_NO_OPTIONS_DAY_INFO;
+
+    double updatetime = json_number_value(json_object_get(day, "last_updated"));
+    double change = json_number_value(json_object_get(day, "change"));
+    double changePercent = json_number_value(json_object_get(day, "change_percent"));
+
+    close = json_number_value(json_object_get(day, "close"));
+    prevClose = json_number_value(json_object_get(day, "previous_close"));
+    volume = json_number_value(json_object_get(day, "volume"));
+
+    json_t *underlying = json_object_get(results, "underlying_asset");
+    char *uticker = (char *)json_string_value(json_object_get(underlying, "ticker"));
+    json_t *p = json_object_get(underlying, "price");
+    if (p != NULL)
+    {
+        double sofr = 0;
+        int fres = fredSOFR(&sofr);
+        if (fres == ON_FRED_OK)
+        {
+            uprice = json_number_value(p);
+            // TODO? get dividend rate from PIO stock info
+            char start[20] = {0};
+            snprintf(start, 20, "-%dd", daysLeft);
+            Date startDate = {0};
+            if (daysLeft < 5)
+                interpretDate("-1w", &startDate);
+            else
+                interpretDate(start, &startDate);
+            Date stopDate = {0};
+            interpretDate("today", &stopDate);
+            int pres = polygonIoVolatility(uticker, startDate, stopDate, &uvolatility);
+
+            if (pres == 0)
+            {
+                Option opt = {uprice, strike, sofr/100.0, 0.0, uvolatility/100.0, yearsLeft};
+                int ivres = binomial_option_implied_volatility(opt, type, close, &impliedVolatility);
+
+            }
+        }
+    }
+
+    char *t = nanoSecondsAsStringMustFree(updatetime);
+
+    print(mainWindow, "%25s $%.3lf/$%.3lf ($%+.3lf, %.2lf%%) Vol: %.0lf OI: %.0lf IV: %.1lf%%/%.1lf%% @ %s\n", tickerName, close, uprice, change, changePercent, volume, oi, impliedVolatility * 100.0, uvolatility, t == NULL ? "? UTC" : t);
+
+    free(t);
+
+    return status;
+
 }
 
 int polygonIoPreviousClose(char *ticker)
@@ -833,7 +829,7 @@ int polygonIoPriceHistory(char *symbol, Date startDate, Date stopDate, PriceData
     return 0;
 }
 
-int polygonIoVolatility(char *symbol, Date startDate, Date stopDate)
+int polygonIoVolatility(char *symbol, Date startDate, Date stopDate, double *volatility)
 {
     char url[URL_BUFFER_SIZE] = {0};
     sprintf(url, "https://api.polygon.io/v2/aggs/ticker/%s/range/1/day/%4d-%02d-%02d/%4d-%02d-%02d?adjusted=true&sort=asc", symbol, startDate.year, startDate.month, startDate.day, stopDate.year, stopDate.month, stopDate.day);
@@ -893,8 +889,12 @@ int polygonIoVolatility(char *symbol, Date startDate, Date stopDate)
                 nPrices++;
             }
         }
-        double volatility = calculate_volatility(prices, nPrices);
-        print(mainWindow, "  Annualized Volatility: %.1lf%%\n", volatility*100);
+        double vol = calculate_volatility(prices, nPrices);
+
+        if (volatility != NULL)
+            *volatility = vol * 100;
+        else
+            print(mainWindow, "  Annualized Volatility: %.1lf%%\n", vol*100);
 
         free(prices);
     }

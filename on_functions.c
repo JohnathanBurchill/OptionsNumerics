@@ -780,7 +780,7 @@ FunctionValue pioVolatilityFunction(FunctionValue arg)
     }
 
     // Call PIO
-    polygonIoVolatility(ticker, date1, date2);
+    polygonIoVolatility(ticker, date1, date2, NULL);
 
     free(ticker);
 
