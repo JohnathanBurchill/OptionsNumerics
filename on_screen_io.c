@@ -59,10 +59,10 @@ int print(WINDOW *window, const char *fmt, ...)
     if (y1 > y0)
     {
         if (mainWindowLines < ON_BUFFERED_LINES)
-            mainWindowLines++;
+            mainWindowLines += y1 - y0;
         else
         {
-            wscrl(window, 1);
+            wscrl(window, y1 - y0);
             wmove(window, y0, x1);
         }
     }
@@ -84,10 +84,10 @@ int mvprint(WINDOW *window, int row, int col, const char *fmt, ...)
     if (y1 > row)
     {
         if (mainWindowLines < ON_BUFFERED_LINES)
-            mainWindowLines++;
+            mainWindowLines += y1 - row;
         else
         {
-            wscrl(window, 1);
+            wscrl(window, y1 - row);
             wmove(window, row, x1);
         }
     }
