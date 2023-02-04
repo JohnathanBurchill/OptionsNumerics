@@ -23,4 +23,6 @@ char continueOrQuit(int maxLineLength, bool pageBreak);
 
 void searchOutputHighlight(char *forThisString);
 
+char *nanoSecondsAsStringMustFree(double nanoseconds);
+
 #endif // _ON_UTILITIES_H
