@@ -22,7 +22,8 @@
 typedef enum optionType
 {
     CALL = 1 << 0,
-    PUT = 1 << 1
+    PUT = 1 << 1,
+    OTHER = 1 << 2
 } OptionType;
 
 typedef struct tickerQuote
