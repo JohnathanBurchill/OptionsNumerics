@@ -21,6 +21,7 @@
 
 #include <ncurses.h>
 
+void prepareForALotOfOutput(long nLines);
 int print(WINDOW *window, const char *fmt, ...);
 int mvprint(WINDOW *window, int row, int col, const char *fmt, ...);
 

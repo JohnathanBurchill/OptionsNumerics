@@ -85,7 +85,7 @@ int main(void)
 
     mainWindowViewHeight = LINES - statusHeight;
 
-    mainWindow = newpad(ON_BUFFERED_LINES + 100, ON_BUFFERED_LINE_LENGTH);
+    mainWindow = newpad(ON_BUFFERED_LINES + 500, ON_BUFFERED_LINE_LENGTH);
     noecho();
     raw();
     keypad(statusWindow, true);
@@ -104,10 +104,12 @@ int main(void)
 
     FunctionValue argument = FV_OK;
 
-    res = restoreScreenHistory();
+    int linesRestored = restoreScreenHistory();
     // Show about message if there is no previous log
-    if (res != 0)
+    if (linesRestored == 0)
         aboutFunction(argument);
+    else
+        print(mainWindow, "%s%d lines of history restored\n", READING_CUE, linesRestored);
 
 
     reviseThingsToRemember();

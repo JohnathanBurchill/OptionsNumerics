@@ -44,6 +44,22 @@ extern volatile sig_atomic_t running;
 
 extern char searchText[ON_CMD_LENGTH];
 
+void prepareForALotOfOutput(long nLines)
+{
+    if (mainWindowLines >= ON_BUFFERED_LINES - nLines)
+    {
+        long freeLines = ON_BUFFERED_LINES - mainWindowLines;
+        long shift = nLines - freeLines;
+        int y = 0, x = 0;
+        getyx(mainWindow, y, x);
+        wscrl(mainWindow, shift);
+        wmove(mainWindow, y - shift, x);
+        mainWindowLines -= shift;
+    }
+
+    return;
+}
+
 int print(WINDOW *window, const char *fmt, ...)
 {
     int y0 = 0, x0 = 0;
@@ -104,6 +120,7 @@ void resetPromptPosition(bool toBottom)
     if (mainWindowTopLine < 0)
         mainWindowTopLine = 0;
 
+    return;
 }
 
 char *readInput(WINDOW *win, char *prompt, int flags)
@@ -176,7 +193,6 @@ char *readInput(WINDOW *win, char *prompt, int flags)
         }
         else if (key == ERR && !scrolling)
         {
-            scrolling = false;
             scrollRate = ON_SCROLL_RATE;
             previousScroll = -1;
             usleep(250);
@@ -239,8 +255,10 @@ char *readInput(WINDOW *win, char *prompt, int flags)
                 }
                 previousScroll = scrollNext;
                 mainWindowTopLine += (int)ceil(scrollRate);
-                if (mainWindowTopLine > mainWindowLines - 2)
-                    mainWindowTopLine = mainWindowLines - 2;
+                if (mainWindowTopLine > mainWindowLines - mainWindowViewHeight)
+                {
+                    mainWindowTopLine = mainWindowLines - mainWindowViewHeight;
+                }
             }
             continue;
         }
@@ -447,30 +465,28 @@ int restoreScreenHistory(void)
         snprintf(sessionsFile, FILENAME_MAX, "%s/%s/%s", home, ON_OPTIONS_DIR, ON_SESSIONS_LOG);
     FILE *sessionsLog = NULL;
     mainWindowLines = 1; // For the prompt
+    int nLines = 0;
     int status = 0;
     if (access(sessionsFile, R_OK) == 0)
     {
         sessionsLog = fopen(sessionsFile, "r");
         if (sessionsLog != NULL)
         {
-            int nLines = 0;
             char lineBuf[ON_BUFFERED_LINE_LENGTH] = {0};
             char *res = fgets(lineBuf, ON_BUFFERED_LINE_LENGTH, sessionsLog);
             while (res != NULL)
             {
+                if (mainWindowLines >= ON_BUFFERED_LINES)
+                    wscrl(mainWindow, 1);
                 print(mainWindow, "%s", lineBuf);
                 res = fgets(lineBuf, ON_BUFFERED_LINE_LENGTH, sessionsLog);
                 nLines++;
             }
             fclose(sessionsLog);
         }
-        else
-            status = 2;
     }
-    else
-        status = 1;
 
-    return status;
+    return nLines;
 }
 
 int saveScreenHistory(void)
@@ -488,7 +504,7 @@ int saveScreenHistory(void)
         int status = 0;
         int lineLength = 0;
         char lineBuf[ON_BUFFERED_LINE_LENGTH] = {0};
-        for (int i = 0; i < mainWindowLines; i++)
+        for (int i = mainWindowLines > ON_BUFFERED_LINES ? mainWindowLines - ON_BUFFERED_LINES : 0; i < mainWindowLines; i++)
         {
             mvwinnstr(mainWindow, i, 0, lineBuf, ON_BUFFERED_LINE_LENGTH);
             // Do not print traling spaces

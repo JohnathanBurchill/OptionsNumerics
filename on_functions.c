@@ -43,6 +43,7 @@
 extern WINDOW *mainWindow;
 extern WINDOW *statusWindow;
 
+extern long mainWindowLines;
 
 FunctionValue echoFunction(FunctionValue arg)
 {
@@ -263,9 +264,8 @@ FunctionValue optionsTimeDecayFunction(FunctionValue arg)
     if (type == 'P')
         otype = PUT;
 
+    prepareForALotOfOutput(daysToExpire + 1);
     print(mainWindow, "Days to go\tprice\n");
-
-
     while (daysToExpire > 0)
     {
         opt.T = (double)daysToExpire / (double)OPTIONS_TRADING_DAYS_PER_YEAR;
@@ -926,8 +926,9 @@ FunctionValue optionsIncomeReinvestedFunction(FunctionValue arg)
     double income = 0;
     double netIncome = 0;
     char amt[100] = {0};
+    prepareForALotOfOutput(years + 2);
     print(mainWindow, "Assumptions: ...\n");
-    print(mainWindow, "%4s%15s%15s%15s\n", "Year",  "Shares",  "Contracts",  "Net income");
+    print(mainWindow, "%4s%15s%15s%15s\n", "Year",  "Shares",  "Contracts",  "Net income");    
     for (int i = 0; i < years; i++)
     {
         income = weeklyProfitPerShare * (double)100 * (double)nContracts * (double)tradingWeeksPerYear;
