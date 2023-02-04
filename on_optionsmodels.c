@@ -116,23 +116,29 @@ int binomial_option_implied_volatility(Option opt, OptionType type, double actua
         return 1;
 
     Option searchOpt = opt;
-    searchOpt.v = 0.5;
+    opt.v = 1.0;
 
     double theoreticalPrice = binomial_option_value(searchOpt, type);
+    double lastTheoreticalPrice = -1.0;
 
     int iterations = 0;
     double deltaV = 0.1;
     double deltaVDecay = 0.9;
 
     double priceDiff = fabs(theoreticalPrice - actualPrice);
-    while (iterations < IV_MAX_ITERATIONS && priceDiff > IV_MAX_PRICE_DIFFERENCE)
+    while (iterations < IV_MAX_ITERATIONS && priceDiff > IV_MAX_PRICE_DIFFERENCE && fabs(theoreticalPrice - lastTheoreticalPrice) > IV_MIN_PRICE_CHANGE)
     {
         if (actualPrice > theoreticalPrice)
             deltaV = deltaVDecay * fabs(deltaV);
         else
             deltaV = -deltaVDecay * fabs(deltaV);
+        
+        if (deltaV < 0 && -deltaV >= searchOpt.v)
+            searchOpt.v *= 0.9;
+        else
+            searchOpt.v += deltaV;
 
-        searchOpt.v += deltaV;
+        lastTheoreticalPrice = theoreticalPrice;
         theoreticalPrice = binomial_option_value(searchOpt, type);
         priceDiff = fabs(theoreticalPrice - actualPrice);
         iterations++;
@@ -142,7 +148,11 @@ int binomial_option_implied_volatility(Option opt, OptionType type, double actua
         print(mainWindow, "No solution after %d iterations.\n", IV_MAX_ITERATIONS);
         return 2;
     }
-    *impliedVolatility = searchOpt.v;
+    // No solution - market bid was less than book value?
+    if (fabs(theoreticalPrice - lastTheoreticalPrice) < IV_MIN_PRICE_CHANGE)
+        *impliedVolatility = nan("");
+    else
+        *impliedVolatility = searchOpt.v;
     return 0;
 }
 

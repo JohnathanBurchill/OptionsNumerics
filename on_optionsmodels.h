@@ -36,9 +36,10 @@ double blackscholes_option_value(Option opt, OptionType type);
 
 // Binomial no dividend
 
-#define BINOMIAL_N_STEPS 1000
-#define IV_MAX_ITERATIONS 500
+#define BINOMIAL_N_STEPS 300
+#define IV_MAX_ITERATIONS 100
 #define IV_MAX_PRICE_DIFFERENCE 0.000001
+#define IV_MIN_PRICE_CHANGE 0.000001
 
 double binomial_option_value(Option opt, OptionType type);
 double option_geeks(Option opt, OptionType type, char *geek, double (*optionValueFunction)(Option, OptionType));
