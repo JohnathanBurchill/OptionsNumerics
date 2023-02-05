@@ -4,24 +4,6 @@
 #include "on_config.h"
 #include <ncurses.h>
 
-typedef struct screenState
-{
-    WINDOW *mainWindow;
-    long mainWindowLines;
-    long mainWindowTopLine;
-    int mainWindowViewHeight;
-
-    WINDOW *statusWindow;
-    int statusHeight;
-    
-    WINDOW *streamWindow;
-    int streamWindowHeight;
-
-    char searchText[ON_CMD_LENGTH];
-    long lastSearchResultLine;    
-
-} ScreenState;
-
 typedef struct thingToRemember
 {
     size_t timesRemembered;
@@ -45,5 +27,24 @@ typedef struct userInputState
 
 } UserInputState;
 
+typedef struct screenState
+{
+    WINDOW *mainWindow;
+    long mainWindowLines;
+    long mainWindowTopLine;
+    int mainWindowViewHeight;
+
+    WINDOW *statusWindow;
+    int statusHeight;
+    
+    WINDOW *streamWindow;
+    int streamWindowHeight;
+
+    char searchText[ON_CMD_LENGTH];
+    long lastSearchResultLine;    
+
+    UserInputState *userInput;
+
+} ScreenState;
 
 #endif // _ON_STATE_H

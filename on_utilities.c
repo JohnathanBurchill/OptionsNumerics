@@ -31,7 +31,7 @@
 
 #include <ncurses.h>
 
-char continueOrQuit(ScreenState *screen, UserInputState *userInput, int maxLineLength, bool pageBreak)
+char continueOrQuit(ScreenState *screen, int maxLineLength, bool pageBreak)
 {
     char template[20] = {0};
     char action = 0;
@@ -39,7 +39,7 @@ char continueOrQuit(ScreenState *screen, UserInputState *userInput, int maxLineL
     char prompt[256] = {0};
     snprintf(prompt, 256, template, "[any key but q for next page...]");
 
-    char *a = readInput(screen, userInput, screen->mainWindow, prompt, ON_READINPUT_ALL | ON_READINPUT_HIDDEN | ON_READINPUT_ONESHOT);
+    char *a = readInput(screen, screen->mainWindow, prompt, ON_READINPUT_ALL | ON_READINPUT_HIDDEN | ON_READINPUT_ONESHOT);
     if (a != NULL)
     {
         action = a[0];

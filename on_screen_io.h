@@ -24,6 +24,7 @@
 #include <ncurses.h>
 
 int initScreen(ScreenState *screen);
+int initUserInput(UserInputState *userInput);
 
 void prepareForALotOfOutput(ScreenState *screen, long nLines);
 int print(ScreenState *screen, WINDOW *window, const char *fmt, ...);
@@ -47,9 +48,7 @@ enum ReadInputFlags
     ON_READINPUT_SEARCH = 1 << 10
 };
 
-int initUserInput(UserInputState *userInput);
-
-char *readInput(ScreenState *screen, UserInputState *userInput, WINDOW *win, char *prompt, int flags);
+char *readInput(ScreenState *screen, WINDOW *win, char *prompt, int flags);
 
 int restoreScreenHistory(ScreenState *screen);
 int saveScreenHistory(ScreenState *screen);

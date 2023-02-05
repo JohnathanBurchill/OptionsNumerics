@@ -30,9 +30,8 @@
 
 #include <curl/curl.h>
 
-FunctionValue aboutFunction(ScreenState *screen, UserInputState *userInput, FunctionValue notUsed)
+FunctionValue aboutFunction(ScreenState *screen, FunctionValue notUsed)
 {
-    (void)userInput;
     (void)notUsed;
 
     print(screen, screen->mainWindow, "%s\n", ON_READING_CUE);
@@ -70,9 +69,8 @@ static size_t curlCallback(char *data, size_t size, size_t nmemb, void *userdata
     return realsize;
 }
 
-FunctionValue licenseFunction(ScreenState *screen, UserInputState *userInput, FunctionValue notUsed)
+FunctionValue licenseFunction(ScreenState *screen, FunctionValue notUsed)
 {
-    (void)userInput;
     (void)notUsed;
     
     CURL *curl = curl_easy_init();
@@ -117,7 +115,7 @@ FunctionValue licenseFunction(ScreenState *screen, UserInputState *userInput, Fu
                     end = strchr(start, '\n');
                 }
                 if (end != NULL)
-                    action = continueOrQuit(screen, userInput, maxLineLength, false);
+                    action = continueOrQuit(screen, maxLineLength, false);
 
                 if (action == 'q')
                     break;
@@ -145,8 +143,12 @@ FunctionValue licenseFunction(ScreenState *screen, UserInputState *userInput, Fu
 
 }
 
-FunctionValue helpFunction(ScreenState *screen, UserInputState *userInput, FunctionValue topicArg)
+FunctionValue helpFunction(ScreenState *screen, FunctionValue topicArg)
 {
+    if (screen == NULL)
+        return FV_NOTOK;
+
+    UserInputState *userInput = screen->userInput;
     if (userInput->commands == NULL)
         return FV_NOTOK;
 

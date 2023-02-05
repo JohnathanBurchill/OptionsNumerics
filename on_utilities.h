@@ -21,7 +21,7 @@
 
 #include <stdbool.h>
 
-char continueOrQuit(ScreenState *screen, UserInputState *userInput, int maxLineLength, bool pageBreak);
+char continueOrQuit(ScreenState *screen, int maxLineLength, bool pageBreak);
 
 void searchOutputHighlight(ScreenState *screen, char *forThisString);
 

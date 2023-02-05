@@ -39,14 +39,12 @@ int main(void)
     int res = 0;
 
     ScreenState screen = {0};
+    UserInputState userInput = {0};
+    screen.userInput = &userInput;
+
     res = initScreen(&screen);
     if (res != 0)
         return 2;
-
-    UserInputState userInput = {0};
-    res = initUserInput(&userInput);
-    if (res != 0)
-        return 3;
 
     bool handledCommand = false;
 
@@ -64,22 +62,22 @@ int main(void)
     int linesRestored = restoreScreenHistory(&screen);
     // Show about message if there is no previous log
     if (linesRestored == 0)
-        aboutFunction(&screen, &userInput, argument);
+        aboutFunction(&screen, argument);
     else
         print(&screen, screen.mainWindow, "%s%d lines of history restored\n", ON_READING_CUE, linesRestored);
 
-    reviseThingsToRemember(&userInput);
+    reviseThingsToRemember(screen.userInput);
 
     checkWebSocketSupport(&screen);
 
-    timeFunction(&screen, &userInput, (FunctionValue)"New session started at ");
+    timeFunction(&screen, (FunctionValue)"New session started at ");
     print(&screen, screen.mainWindow, "%s\n", ON_READING_CUE);
 
     while (running)
     {
         handledCommand = false;
 
-        readInput(&screen, &userInput, screen.mainWindow, userInput.prompt, ON_READINPUT_ALL | ON_READINPUT_STATUS_WINDOW | ON_READINPUT_NO_COPY);
+        readInput(&screen, screen.mainWindow, userInput.prompt, ON_READINPUT_ALL | ON_READINPUT_STATUS_WINDOW | ON_READINPUT_NO_COPY);
 
         if (strcmp("exit", userInput.cmd) == 0 || strcmp("quit", userInput.cmd) == 0 || strcmp("q", userInput.cmd) == 0)
             break;
@@ -100,7 +98,7 @@ int main(void)
                 if (userInput.commands[i].function != NULL)
                 {
                     memorize(&userInput, userInput.cmd);
-                    (void) userInput.commands[i].function(&screen, &userInput, argument);
+                    (void) userInput.commands[i].function(&screen, argument);
                     handledCommand = true;
                 }
                 break;
@@ -126,7 +124,7 @@ int main(void)
 
     freeCommands(userInput.commands);
 
-    timeFunction(&screen, &userInput, (FunctionValue)"Session stopped at ");
+    timeFunction(&screen, (FunctionValue)"Session stopped at ");
 
     saveScreenHistory(&screen);
 

@@ -24,7 +24,7 @@
 
 #include <ncurses.h>
 
-FunctionValue examplesFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg)
+FunctionValue examplesFunction(ScreenState *screen, FunctionValue arg)
 {
     char *topic = arg.charStarValue;
     if (topic == NULL || topic[0] == 0)
@@ -32,9 +32,9 @@ FunctionValue examplesFunction(ScreenState *screen, UserInputState *userInput, F
 
     for (int i = 0; i < NCOMMANDS; i++)
     {
-        if (strcasecmp(userInput->commands[i].longName, topic) == 0 || (userInput->commands[i].shortName != NULL && strcasecmp(userInput->commands[i].shortName, topic) == 0))
+        if (strcasecmp(screen->userInput->commands[i].longName, topic) == 0 || (screen->userInput->commands[i].shortName != NULL && strcasecmp(screen->userInput->commands[i].shortName, topic) == 0))
         {
-            CommandExample *example = &userInput->commands[i].example;
+            CommandExample *example = &screen->userInput->commands[i].example;
 
             if (example->summary == NULL)
             {
@@ -69,10 +69,10 @@ FunctionValue examplesFunction(ScreenState *screen, UserInputState *userInput, F
                 sprintf(cmd, "%s", parameters);
 
             print(screen, screen->mainWindow, "%s\n", cmd);
-            memorize(userInput, cmd);
+            memorize(screen->userInput, cmd);
             FunctionValue exampleArg = {0};
             exampleArg.charStarValue = parameters;
-            (void)userInput->commands[i].function(screen, userInput, exampleArg);
+            (void)screen->userInput->commands[i].function(screen, exampleArg);
         }
 
     }

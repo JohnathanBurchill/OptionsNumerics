@@ -52,42 +52,42 @@ typedef enum functionValueType
 } FunctionValueType;
 
 // for testing, maybe other uses
-FunctionValue echoFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg);
-FunctionValue testCommandsFunction(ScreenState *screen, UserInputState *userInputState, FunctionValue arg);
+FunctionValue echoFunction(ScreenState *screen, FunctionValue arg);
+FunctionValue testCommandsFunction(ScreenState *screenState, FunctionValue arg);
 
-FunctionValue timeFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg);
+FunctionValue timeFunction(ScreenState *screen, FunctionValue arg);
 
-FunctionValue helpFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg);
+FunctionValue helpFunction(ScreenState *screen, FunctionValue arg);
 
-FunctionValue showCommandsFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg);
+FunctionValue showCommandsFunction(ScreenState *screen, FunctionValue arg);
 
 // Calculator
-FunctionValue blackScholesOptionPriceFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg);
-FunctionValue binomialOptionPriceFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg);
-FunctionValue optionsTimeDecayFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg);
+FunctionValue blackScholesOptionPriceFunction(ScreenState *screen, FunctionValue arg);
+FunctionValue binomialOptionPriceFunction(ScreenState *screen, FunctionValue arg);
+FunctionValue optionsTimeDecayFunction(ScreenState *screen, FunctionValue arg);
 
-FunctionValue geeksFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg);
-FunctionValue impliedVolatilityFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg);
-FunctionValue impliedPriceFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg);
+FunctionValue geeksFunction(ScreenState *screen, FunctionValue arg);
+FunctionValue impliedVolatilityFunction(ScreenState *screen, FunctionValue arg);
+FunctionValue impliedPriceFunction(ScreenState *screen, FunctionValue arg);
 
-FunctionValue feesFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg);
-FunctionValue timeValueOfMoneyFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg);
+FunctionValue feesFunction(ScreenState *screen, FunctionValue arg);
+FunctionValue timeValueOfMoneyFunction(ScreenState *screen, FunctionValue arg);
 
 // Data
-FunctionValue pioOptionsSearchFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg);
-FunctionValue pioOptionsChainFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg);
-FunctionValue pioPriceHistoryFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg);
-FunctionValue pioVolatilityFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg);
-FunctionValue pioLatestPriceFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg);
-FunctionValue pioPreviousCloseFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg);
+FunctionValue pioOptionsSearchFunction(ScreenState *screen, FunctionValue arg);
+FunctionValue pioOptionsChainFunction(ScreenState *screen, FunctionValue arg);
+FunctionValue pioPriceHistoryFunction(ScreenState *screen, FunctionValue arg);
+FunctionValue pioVolatilityFunction(ScreenState *screen, FunctionValue arg);
+FunctionValue pioLatestPriceFunction(ScreenState *screen, FunctionValue arg);
+FunctionValue pioPreviousCloseFunction(ScreenState *screen, FunctionValue arg);
 
-FunctionValue fredSOFRFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg);
+FunctionValue fredSOFRFunction(ScreenState *screen, FunctionValue arg);
 
-FunctionValue questradeConnectionFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg);
+FunctionValue questradeConnectionFunction(ScreenState *screen, FunctionValue arg);
 
 // What if?
-FunctionValue optionsIncomeReinvestedFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg);
+FunctionValue optionsIncomeReinvestedFunction(ScreenState *screen, FunctionValue arg);
 
-FunctionValue optionsExerciseChanceFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg);
+FunctionValue optionsExerciseChanceFunction(ScreenState *screen, FunctionValue arg);
 
 #endif // _ON_FUNCTIONS_H

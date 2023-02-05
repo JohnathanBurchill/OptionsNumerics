@@ -26,20 +26,6 @@
 #include <stdio.h>
 #include <unistd.h>
 
-int initUserInput(UserInputState *userInput)
-{
-    userInput->prompt = ON_PROMPT;
-    userInput->promptLength = (int)strlen(userInput->prompt);
-
-    userInput->numberOfThingsRemembered = 0;
-    userInput->thinkingOf = 0;
-    userInput->recallDirection = -1;
-
-    int res = initCommands(&userInput->commands);
-
-    return res;
-}
-
 int initCommands(Command **commands)
 {
     if (commands == NULL)
@@ -297,11 +283,11 @@ int reviseThingsToRemember(UserInputState *userInput)
     return 0;
 }
 
-void showRememberedThings(ScreenState *screen, UserInputState *userInput)
+void showRememberedThings(ScreenState *screen)
 {
     print(screen, screen->mainWindow, "Remembered:\n");
-    for (int i = 0; i < userInput->numberOfThingsRemembered; i++)
-        print(screen, screen->mainWindow, " %4d %s (%ld)\n", i + 1, userInput->thingsRemembered[i].thing, userInput->thingsRemembered[i].timesRemembered);
+    for (int i = 0; i < screen->userInput->numberOfThingsRemembered; i++)
+        print(screen, screen->mainWindow, " %4d %s (%ld)\n", i + 1, screen->userInput->thingsRemembered[i].thing, screen->userInput->thingsRemembered[i].timesRemembered);
 
     return;
 }

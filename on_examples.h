@@ -20,8 +20,6 @@
 #include "on_state.h"
 #include "on_commands.h"
 
-#include <stdbool.h>
-
-FunctionValue examplesFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg);
+FunctionValue examplesFunction(ScreenState *screen, FunctionValue arg);
 
 #endif // _ON_EXAMPLES_H

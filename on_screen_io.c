@@ -58,8 +58,24 @@ int initScreen(ScreenState *screen)
 
     screen->lastSearchResultLine = 0;
 
+    status |= initUserInput(screen->userInput);
+
     return status;
 
+}
+
+int initUserInput(UserInputState *userInput)
+{
+    userInput->prompt = ON_PROMPT;
+    userInput->promptLength = (int)strlen(userInput->prompt);
+
+    userInput->numberOfThingsRemembered = 0;
+    userInput->thinkingOf = 0;
+    userInput->recallDirection = -1;
+
+    int res = initCommands(&userInput->commands);
+
+    return res;
 }
 
 void prepareForALotOfOutput(ScreenState *screen, long nLines)
@@ -153,7 +169,7 @@ void resetPromptPosition(ScreenState *screen, bool toBottom)
     return;
 }
 
-char *readInput(ScreenState *screen, UserInputState *userInput, WINDOW *win, char *prompt, int flags)
+char *readInput(ScreenState *screen, WINDOW *win, char *prompt, int flags)
 {
     int cury = 0;
     int curx = 0;
@@ -172,6 +188,8 @@ char *readInput(ScreenState *screen, UserInputState *userInput, WINDOW *win, cha
     wclrtoeol(win);
     if (!(ON_READINPUT_SEARCH & flags))
         resetPromptPosition(screen, false);
+
+    UserInputState *userInput = screen->userInput;
 
     userInput->cmd[0] = '\0';
 
@@ -256,7 +274,7 @@ char *readInput(ScreenState *screen, UserInputState *userInput, WINDOW *win, cha
             }
             wmove(screen->statusWindow, 0, 0);
             char * cmdold = strdup(userInput->cmd);
-            char * ans = readInput(screen, userInput, screen->statusWindow, "Search for: ", ON_READINPUT_ALL | ON_READINPUT_SEARCH);
+            char * ans = readInput(screen, screen->statusWindow, "Search for: ", ON_READINPUT_ALL | ON_READINPUT_SEARCH);
             memorize(userInput, ans);
             free(ans);
             size_t l = strlen(cmdold);

@@ -40,7 +40,7 @@ typedef struct command
     char *shortName;
     char *helpMessage;
     char *usage;
-    FunctionValue (*function)(ScreenState *, UserInputState *, FunctionValue);
+    FunctionValue (*function)(ScreenState *, FunctionValue);
     FunctionValueType functionArgumentType;
     FunctionValueType functionReturnType;
     CommandExample example;
@@ -59,6 +59,6 @@ const char *recallMostRecent(UserInputState *userInput);
 
 int writeDownThingsToRemember(UserInputState *userInput);
 int reviseThingsToRemember(UserInputState *userInput);
-void showRememberedThings(ScreenState *screen, UserInputState *userInput);
+void showRememberedThings(ScreenState *screen);
 
 #endif // _ON_COMMANDS_H

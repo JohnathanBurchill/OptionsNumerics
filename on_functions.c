@@ -40,7 +40,7 @@
 
 #include <ncurses.h>
 
-FunctionValue echoFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg)
+FunctionValue echoFunction(ScreenState *screen, FunctionValue arg)
 {
     if (arg.charStarValue != NULL)
         print(screen, screen->mainWindow, "%s\n", arg.charStarValue);
@@ -48,7 +48,7 @@ FunctionValue echoFunction(ScreenState *screen, UserInputState *userInput, Funct
     return FV_OK;
 }
 
-FunctionValue testCommandsFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg)
+FunctionValue testCommandsFunction(ScreenState *screen, FunctionValue arg)
 {
     (void)arg;
 
@@ -57,17 +57,17 @@ FunctionValue testCommandsFunction(ScreenState *screen, UserInputState *userInpu
 
     for (int i = 0; i < NCOMMANDS; i++)
     {
-        char *longName = userInput->commands[i].longName;
+        char *longName = screen->userInput->commands[i].longName;
         argument.charStarValue = longName;
         print(screen, screen->mainWindow, "---- Testing \'%s\' example ----\n", longName);
-        if (userInput->commands[i].function != NULL)
-            (void) examplesFunction(screen, userInput, argument);
+        if (screen->userInput->commands[i].function != NULL)
+            (void) examplesFunction(screen, argument);
     }
 
     return FV_OK;
 }
 
-FunctionValue timeFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg)
+FunctionValue timeFunction(ScreenState *screen, FunctionValue arg)
 {
     char *input = arg.charStarValue;
 
@@ -94,14 +94,14 @@ FunctionValue timeFunction(ScreenState *screen, UserInputState *userInput, Funct
     return FV_OK;
 }
 
-FunctionValue showCommandsFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg)
+FunctionValue showCommandsFunction(ScreenState *screen, FunctionValue arg)
 {
     (void)arg;
-    showRememberedThings(screen, userInput);
+    showRememberedThings(screen);
     return FV_OK;
 }
 
-FunctionValue blackScholesOptionPriceFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg)
+FunctionValue blackScholesOptionPriceFunction(ScreenState *screen, FunctionValue arg)
 {
     double S, K, r, sigma, optionValue, bookValue, timeValue;
     int year = 0, month = 0, day = 0;
@@ -116,12 +116,12 @@ FunctionValue blackScholesOptionPriceFunction(ScreenState *screen, UserInputStat
     if (params != NULL)
         parameters = strdup(params);
     else
-        parameters = readInput(screen, userInput, screen->mainWindow, "  parameters: ", ON_READINPUT_ALL);
+        parameters = readInput(screen, screen->mainWindow, "  parameters: ", ON_READINPUT_ALL);
     if (!parameters)
         return FV_NOTOK;
 
     if (params == NULL && parameters[0] != 0)
-        memorize(userInput, parameters);
+        memorize(screen->userInput, parameters);
 
     int nParams = sscanf(parameters, "T:%c,S:%lf,E:%4d-%02d-%02d,V:%lf,R:%lf,P:%lf", &type, &K, &year, &month, &day, &sigma, &r, &S);
     free(parameters);
@@ -163,7 +163,7 @@ FunctionValue blackScholesOptionPriceFunction(ScreenState *screen, UserInputStat
     return FV_OK;
 }
 
-FunctionValue binomialOptionPriceFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg)
+FunctionValue binomialOptionPriceFunction(ScreenState *screen, FunctionValue arg)
 {
     double S, K, r, q, sigma, optionValue, bookValue, timeValue;
     int year = 0, month = 0, day = 0;
@@ -178,12 +178,12 @@ FunctionValue binomialOptionPriceFunction(ScreenState *screen, UserInputState *u
     if (params != NULL)
         parameters = strdup(params);
     else
-        parameters = readInput(screen, userInput, screen->mainWindow, "  parameters: ", ON_READINPUT_ALL);
+        parameters = readInput(screen, screen->mainWindow, "  parameters: ", ON_READINPUT_ALL);
     if (!parameters)
         return FV_NOTOK;
 
     if (params == NULL && parameters[0] != 0)
-        memorize(userInput, parameters);
+        memorize(screen->userInput, parameters);
 
     int nParams = sscanf(parameters, "T:%c,S:%lf,E:%4d-%02d-%02d,V:%lf,R:%lf,Q:%lf,P:%lf", &type, &K, &year, &month, &day, &sigma, &r, &q, &S);
     free(parameters);
@@ -225,7 +225,7 @@ FunctionValue binomialOptionPriceFunction(ScreenState *screen, UserInputState *u
     return FV_OK;
 }
 
-FunctionValue optionsTimeDecayFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg)
+FunctionValue optionsTimeDecayFunction(ScreenState *screen, FunctionValue arg)
 {
     char *params = arg.charStarValue;
     double S, K, r, q, sigma, optionValue, bookValue, timeValue;
@@ -240,12 +240,12 @@ FunctionValue optionsTimeDecayFunction(ScreenState *screen, UserInputState *user
     if (params != NULL)
         parameters = strdup(params);
     else
-        parameters = readInput(screen, userInput, screen->mainWindow, "  parameters: ", ON_READINPUT_ALL);
+        parameters = readInput(screen, screen->mainWindow, "  parameters: ", ON_READINPUT_ALL);
     if (!parameters)
         return FV_NOTOK;
 
     if (params == NULL && parameters[0] != 0)
-        memorize(userInput, parameters);
+        memorize(screen->userInput, parameters);
 
     int nParams = sscanf(parameters, "X:%c,T:%c,S:%lf,E:%4d-%02d-%02d,V:%lf,R:%lf,Q:%lf,P:%lf", &exerciseMethod, &type, &K, &year, &month, &day, &sigma, &r, &q, &S);
     free(parameters);
@@ -298,7 +298,7 @@ FunctionValue optionsTimeDecayFunction(ScreenState *screen, UserInputState *user
     return FV_OK;
 }
 
-FunctionValue geeksFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg)
+FunctionValue geeksFunction(ScreenState *screen, FunctionValue arg)
 {
     double S, K, r, q, sigma, optionValue, bookValue, timeValue;
     int year = 0, month = 0, day = 0;
@@ -312,11 +312,11 @@ FunctionValue geeksFunction(ScreenState *screen, UserInputState *userInput, Func
     if (params != NULL)
         parameters = strdup(params);
     else
-        parameters = readInput(screen, userInput, screen->mainWindow, "  parameters: ", ON_READINPUT_ALL);
+        parameters = readInput(screen, screen->mainWindow, "  parameters: ", ON_READINPUT_ALL);
     if (!parameters)
         return FV_NOTOK;
     if (params == NULL && parameters[0] != 0)
-        memorize(userInput, parameters);
+        memorize(screen->userInput, parameters);
 
     char geek = 0;
 
@@ -382,7 +382,7 @@ FunctionValue geeksFunction(ScreenState *screen, UserInputState *userInput, Func
     return FV_OK;
 }
 
-FunctionValue impliedVolatilityFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg)
+FunctionValue impliedVolatilityFunction(ScreenState *screen, FunctionValue arg)
 {
     double S, K, r, q, bid, ask, bidImpliedVolatility = 0, askImpliedVolatility = 0;
     int year = 0, month = 0, day = 0;
@@ -396,12 +396,12 @@ FunctionValue impliedVolatilityFunction(ScreenState *screen, UserInputState *use
     if (params != NULL)
         parameters = strdup(params);
     else
-        parameters = readInput(screen, userInput, screen->mainWindow, "  parameters: ", ON_READINPUT_ALL);
+        parameters = readInput(screen, screen->mainWindow, "  parameters: ", ON_READINPUT_ALL);
     if (!parameters)
         return FV_NOTOK;
 
     if (params == NULL && parameters[0] != 0)
-        memorize(userInput, parameters);
+        memorize(screen->userInput, parameters);
         
     int nParams = sscanf(parameters, "T:%c,S:%lf,E:%4d-%02d-%02d,R:%lf,Q:%lf,P:%lf,B:%lf,A:%lf", &type, &K, &year, &month, &day, &r, &q, &S, &bid, &ask);
     free(parameters);
@@ -431,7 +431,7 @@ FunctionValue impliedVolatilityFunction(ScreenState *screen, UserInputState *use
     return FV_OK;
 }
 
-FunctionValue impliedPriceFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg)
+FunctionValue impliedPriceFunction(ScreenState *screen, FunctionValue arg)
 {
     int status = 0;
 
@@ -449,12 +449,12 @@ FunctionValue impliedPriceFunction(ScreenState *screen, UserInputState *userInpu
     if (params != NULL)
         parameters = strdup(params);
     else
-        parameters = readInput(screen, userInput, screen->mainWindow, "  parameters: ", ON_READINPUT_ALL);
+        parameters = readInput(screen, screen->mainWindow, "  parameters: ", ON_READINPUT_ALL);
     if (!parameters)
         return FV_NOTOK;
 
     if (params == NULL && parameters[0] != 0)
-        memorize(userInput, parameters);
+        memorize(screen->userInput, parameters);
         
     char *keys[] = {"T:", "S:", "E:", "V:", "R:", "Q:", "O:", 0};
     tokens = splitStringByKeys(parameters, keys, ',', &nTokens);
@@ -495,7 +495,7 @@ cleanup:
     return (FunctionValue)status;
 }
 
-FunctionValue feesFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg)
+FunctionValue feesFunction(ScreenState *screen, FunctionValue arg)
 {
     char unitType = 0;
     int nunits = 0;
@@ -509,12 +509,12 @@ FunctionValue feesFunction(ScreenState *screen, UserInputState *userInput, Funct
     if (params != NULL)
         parameters = strdup(params);
     else
-        parameters = readInput(screen, userInput, screen->mainWindow, "  parameters: ", ON_READINPUT_ALL);
+        parameters = readInput(screen, screen->mainWindow, "  parameters: ", ON_READINPUT_ALL);
     if (!parameters)
         return FV_NOTOK;
 
     if (params == NULL && parameters[0] != 0)
-        memorize(userInput, parameters);
+        memorize(screen->userInput, parameters);
 
     int nParams = sscanf(parameters, "U:%c,N:%d,F:%lf,P:%lf,X:%c", &unitType, &nunits, &flatfee, &perunitfee, &oneOrTwo);
     free(parameters);
@@ -540,14 +540,14 @@ FunctionValue feesFunction(ScreenState *screen, UserInputState *userInput, Funct
 
 }
 
-FunctionValue timeValueOfMoneyFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg)
+FunctionValue timeValueOfMoneyFunction(ScreenState *screen, FunctionValue arg)
 {
     (void)arg;
 
     char *input = NULL;
     int status = 0;
 
-    input = readInput(screen, userInput, screen->mainWindow, "  amount: ", ON_READINPUT_ALL);
+    input = readInput(screen, screen->mainWindow, "  amount: ", ON_READINPUT_ALL);
     if (!input)
         return FV_NOTOK;
     if (input[0] == 0)
@@ -556,10 +556,10 @@ FunctionValue timeValueOfMoneyFunction(ScreenState *screen, UserInputState *user
         return FV_NOTOK;
     }
     double amount = atof(input);
-    memorize(userInput, input);
+    memorize(screen->userInput, input);
     free(input);
 
-    input = readInput(screen, userInput, screen->mainWindow, "  amount's date: ", ON_READINPUT_ALL);
+    input = readInput(screen, screen->mainWindow, "  amount's date: ", ON_READINPUT_ALL);
     if (!input)
         return FV_NOTOK;
     if (input[0] == 0)
@@ -574,10 +574,10 @@ FunctionValue timeValueOfMoneyFunction(ScreenState *screen, UserInputState *user
         free(input);
         return FV_NOTOK;
     }
-    memorize(userInput, input);
+    memorize(screen->userInput, input);
     free(input);
 
-    input = readInput(screen, userInput, screen->mainWindow, "  requested date: ", ON_READINPUT_ALL);
+    input = readInput(screen, screen->mainWindow, "  requested date: ", ON_READINPUT_ALL);
     if (!input)
         return FV_NOTOK;
     if (input[0] == 0)
@@ -592,10 +592,10 @@ FunctionValue timeValueOfMoneyFunction(ScreenState *screen, UserInputState *user
         free(input);
         return FV_NOTOK;
     }
-    memorize(userInput, input);
+    memorize(screen->userInput, input);
     free(input);
 
-    input = readInput(screen, userInput, screen->mainWindow, "  annual rate (%%): ", ON_READINPUT_ALL);
+    input = readInput(screen, screen->mainWindow, "  annual rate (%%): ", ON_READINPUT_ALL);
     if (!input)
         return FV_NOTOK;
     if (input[0] == 0)
@@ -604,7 +604,7 @@ FunctionValue timeValueOfMoneyFunction(ScreenState *screen, UserInputState *user
         return FV_NOTOK;
     }
     double rate = atof(input);
-    memorize(userInput, input);
+    memorize(screen->userInput, input);
     free(input);
 
     double newAmount = timeValue(screen, amount, rate, d1, d2);
@@ -613,7 +613,7 @@ FunctionValue timeValueOfMoneyFunction(ScreenState *screen, UserInputState *user
     return FV_OK;
 }
 
-FunctionValue pioOptionsSearchFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg)
+FunctionValue pioOptionsSearchFunction(ScreenState *screen, FunctionValue arg)
 {
 
     char *input = NULL;
@@ -639,7 +639,7 @@ FunctionValue pioOptionsSearchFunction(ScreenState *screen, UserInputState *user
     if (params != NULL)
         parameters = strdup(params);
     else
-        parameters = readInput(screen, userInput, screen->mainWindow, "  parameters: ", ON_READINPUT_ALL);
+        parameters = readInput(screen, screen->mainWindow, "  parameters: ", ON_READINPUT_ALL);
     if (!parameters)
         return FV_NOTOK;
     if (parameters[0] == 0)
@@ -649,7 +649,7 @@ FunctionValue pioOptionsSearchFunction(ScreenState *screen, UserInputState *user
     }
 
     if (params == NULL && parameters[0] != 0)
-        memorize(userInput, parameters);
+        memorize(screen->userInput, parameters);
 
     char *keys[] = {"", "T:", "s:", "S:", "e:", "E:", "X:", 0};
     tokens = splitStringByKeys(parameters, keys, ',', &nTokens);
@@ -674,7 +674,7 @@ FunctionValue pioOptionsSearchFunction(ScreenState *screen, UserInputState *user
     {
         polygonIoOptionsSearch(screen, ticker, type, minstrike, maxstrike, date1, date2, expired, &nextPagePtr);
         if (nextPagePtr != NULL)
-            action = continueOrQuit(screen, userInput, 50, false);
+            action = continueOrQuit(screen, 50, false);
     } while (nextPagePtr != NULL && action != 'q');
     free(nextPagePtr);
 
@@ -690,7 +690,7 @@ cleanup:
     return FV_OK;
 }
 
-FunctionValue pioOptionsChainFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg)
+FunctionValue pioOptionsChainFunction(ScreenState *screen, FunctionValue arg)
 {
     char type = 0;
     double minstrike = 0;
@@ -715,7 +715,7 @@ FunctionValue pioOptionsChainFunction(ScreenState *screen, UserInputState *userI
     if (params != NULL)
         parameters = strdup(params);
     else
-        parameters = readInput(screen, userInput, screen->mainWindow, "  parameters: ", ON_READINPUT_ALL);
+        parameters = readInput(screen, screen->mainWindow, "  parameters: ", ON_READINPUT_ALL);
     if (!parameters)
         return FV_NOTOK;
     if (parameters[0] == 0)
@@ -725,7 +725,7 @@ FunctionValue pioOptionsChainFunction(ScreenState *screen, UserInputState *userI
     }
 
     if (params == NULL && parameters[0] != 0)
-        memorize(userInput, parameters);
+        memorize(screen->userInput, parameters);
 
     char *keys[] = {"", "T:", "s:", "S:", "e:", "E:", "v:", 0};
     tokens = splitStringByKeys(parameters, keys, ',', &nTokens);
@@ -750,7 +750,7 @@ FunctionValue pioOptionsChainFunction(ScreenState *screen, UserInputState *userI
     {
         polygonIoOptionsChain(screen, ticker, type, minstrike, maxstrike, date1, date2, minpremium, &nextPagePtr);
         if (nextPagePtr != NULL)
-            action = continueOrQuit(screen, userInput, 50, false);
+            action = continueOrQuit(screen, 50, false);
     } while (nextPagePtr != NULL && action != 'q');
     free(nextPagePtr);
 
@@ -765,14 +765,14 @@ cleanup:
     return FV_OK;
 }
 
-FunctionValue pioPriceHistoryFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg)
+FunctionValue pioPriceHistoryFunction(ScreenState *screen, FunctionValue arg)
 {
     (void)arg;
     char *input = NULL;
     char *ticker = NULL;
 
     resetPromptPosition(screen, false);
-    input = readInput(screen, userInput, screen->mainWindow, "  ticker symbol: ", ON_READINPUT_ALL);
+    input = readInput(screen, screen->mainWindow, "  ticker symbol: ", ON_READINPUT_ALL);
 
     ticker = strdup(input);
     if (input[0] == 0)
@@ -780,11 +780,11 @@ FunctionValue pioPriceHistoryFunction(ScreenState *screen, UserInputState *userI
         free(input);
         return FV_NOTOK;
     }
-    memorize(userInput, input);
+    memorize(screen->userInput, input);
     free(input);
 
     resetPromptPosition(screen, false);
-    input = readInput(screen, userInput, screen->mainWindow, "  date range: ", ON_READINPUT_ALL);
+    input = readInput(screen, screen->mainWindow, "  date range: ", ON_READINPUT_ALL);
     if (!input)
         return FV_NOTOK;
     if (input[0] == 0)
@@ -792,7 +792,7 @@ FunctionValue pioPriceHistoryFunction(ScreenState *screen, UserInputState *userI
         free(input);
         return FV_NOTOK;
     }
-    memorize(userInput, input);
+    memorize(screen->userInput, input);
     Date date1 = {0};
     Date date2 = {0};
     int status = dateRange(input, &date1, &date2);
@@ -812,7 +812,7 @@ FunctionValue pioPriceHistoryFunction(ScreenState *screen, UserInputState *userI
     return FV_OK;
 }
 
-FunctionValue pioVolatilityFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg)
+FunctionValue pioVolatilityFunction(ScreenState *screen, FunctionValue arg)
 {
     char *input = NULL;
     char *ticker = NULL;
@@ -823,7 +823,7 @@ FunctionValue pioVolatilityFunction(ScreenState *screen, UserInputState *userInp
     if (params != NULL)
         parameters = strdup(params);
     else
-        parameters = readInput(screen, userInput, screen->mainWindow, "  parameters: ", ON_READINPUT_ALL);
+        parameters = readInput(screen, screen->mainWindow, "  parameters: ", ON_READINPUT_ALL);
     if (!parameters)
         return FV_NOTOK;
     if (parameters[0] == 0)
@@ -834,7 +834,7 @@ FunctionValue pioVolatilityFunction(ScreenState *screen, UserInputState *userInp
     }
 
     if (params == NULL && parameters[0] != 0)
-        memorize(userInput, parameters);
+        memorize(screen->userInput, parameters);
 
     // From strsep man page
     char *token = NULL;
@@ -872,7 +872,7 @@ FunctionValue pioVolatilityFunction(ScreenState *screen, UserInputState *userInp
     return FV_OK;
 }
 
-FunctionValue pioLatestPriceFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg)
+FunctionValue pioLatestPriceFunction(ScreenState *screen, FunctionValue arg)
 {
     char *input = NULL;
     char *ticker = NULL;
@@ -882,12 +882,12 @@ FunctionValue pioLatestPriceFunction(ScreenState *screen, UserInputState *userIn
     if (tkr != NULL)
         ticker = strdup(tkr);
     else
-        ticker = readInput(screen, userInput, screen->mainWindow, "  ticker: ", ON_READINPUT_ALL);
+        ticker = readInput(screen, screen->mainWindow, "  ticker: ", ON_READINPUT_ALL);
     if (!ticker)
         return FV_NOTOK;
 
     if (tkr == NULL && ticker[0] != 0)
-        memorize(userInput, ticker);
+        memorize(screen->userInput, ticker);
 
     if (ticker[0] == 0)
     {
@@ -903,7 +903,7 @@ FunctionValue pioLatestPriceFunction(ScreenState *screen, UserInputState *userIn
     return FV_OK;
 }
 
-FunctionValue pioPreviousCloseFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg)
+FunctionValue pioPreviousCloseFunction(ScreenState *screen, FunctionValue arg)
 {
 
     char *input = NULL;
@@ -920,12 +920,12 @@ FunctionValue pioPreviousCloseFunction(ScreenState *screen, UserInputState *user
     if (tkr != NULL)
         ticker = strdup(tkr);
     else
-        ticker = readInput(screen, userInput, screen->mainWindow, "  ticker: ", ON_READINPUT_ALL);
+        ticker = readInput(screen, screen->mainWindow, "  ticker: ", ON_READINPUT_ALL);
     if (!ticker)
         return FV_NOTOK;
 
     if (tkr == NULL && ticker[0] != 0)
-        memorize(userInput, ticker);
+        memorize(screen->userInput, ticker);
 
     if (ticker[0] == 0)
     {
@@ -954,7 +954,7 @@ FunctionValue pioPreviousCloseFunction(ScreenState *screen, UserInputState *user
 }
 
 // FRED
-FunctionValue fredSOFRFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg)
+FunctionValue fredSOFRFunction(ScreenState *screen, FunctionValue arg)
 {
     (void)arg;
 
@@ -964,7 +964,7 @@ FunctionValue fredSOFRFunction(ScreenState *screen, UserInputState *userInput, F
 }
 
 // Questrade
-FunctionValue questradeConnectionFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg)
+FunctionValue questradeConnectionFunction(ScreenState *screen, FunctionValue arg)
 {
     (void)arg;
 
@@ -975,7 +975,7 @@ FunctionValue questradeConnectionFunction(ScreenState *screen, UserInputState *u
 
 
 // What if?
-FunctionValue optionsIncomeReinvestedFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg)
+FunctionValue optionsIncomeReinvestedFunction(ScreenState *screen, FunctionValue arg)
 {
     char *params = arg.charStarValue;
     int startingShares = 0;
@@ -991,12 +991,12 @@ FunctionValue optionsIncomeReinvestedFunction(ScreenState *screen, UserInputStat
     if (params != NULL)
         parameters = strdup(params);
     else
-        parameters = readInput(screen, userInput, screen->mainWindow, "  parameters: ", ON_READINPUT_ALL);
+        parameters = readInput(screen, screen->mainWindow, "  parameters: ", ON_READINPUT_ALL);
     if (!parameters)
         return FV_NOTOK;
 
     if (params == NULL && parameters[0] != 0)
-        memorize(userInput, parameters);
+        memorize(screen->userInput, parameters);
 
     int nParams = sscanf(parameters, "N:%d,D:%lf,T:%lf,R:%lf,P:%lf,Y:%d", &startingShares, &weeklyProfitPerShare, &taxRate, &percentReinvested, &sharePrice, &years);
     free(parameters);
@@ -1027,7 +1027,7 @@ FunctionValue optionsIncomeReinvestedFunction(ScreenState *screen, UserInputStat
     return FV_OK;
 }
 
-FunctionValue optionsExerciseChanceFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg)
+FunctionValue optionsExerciseChanceFunction(ScreenState *screen, FunctionValue arg)
 {
     char *input = NULL;
     char *ticker = NULL;
@@ -1037,12 +1037,12 @@ FunctionValue optionsExerciseChanceFunction(ScreenState *screen, UserInputState 
     if (tkr != NULL)
         ticker = strdup(tkr);
     else
-        ticker = readInput(screen, userInput, screen->mainWindow, "  ticker: ", ON_READINPUT_ALL);
+        ticker = readInput(screen, screen->mainWindow, "  ticker: ", ON_READINPUT_ALL);
     if (!ticker)
         return FV_NOTOK;
 
     if (tkr == NULL && ticker[0] != 0)
-        memorize(userInput, ticker);
+        memorize(screen->userInput, ticker);
 
     if (ticker[0] == 0)
     {

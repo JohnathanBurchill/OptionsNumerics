@@ -20,9 +20,9 @@
 #include "on_state.h"
 #include "on_commands.h"
 
-FunctionValue aboutFunction(ScreenState *screen, UserInputState *userInput, FunctionValue topic);
-FunctionValue licenseFunction(ScreenState *screen, UserInputState *userInput, FunctionValue topic);
-FunctionValue helpFunction(ScreenState *screen, UserInputState *userInput, FunctionValue topic);
+FunctionValue aboutFunction(ScreenState *screen, FunctionValue topic);
+FunctionValue licenseFunction(ScreenState *screen, FunctionValue topic);
+FunctionValue helpFunction(ScreenState *screen, FunctionValue topic);
 void api_names(ScreenState *screen);
 
 #endif // _ON_INFO_H
