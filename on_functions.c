@@ -80,6 +80,13 @@ FunctionValue timeFunction(FunctionValue arg)
     return FV_OK;
 }
 
+FunctionValue showCommandsFunction(FunctionValue arg)
+{
+    (void)arg;
+    showRememberedThings();
+    return FV_OK;
+}
+
 FunctionValue blackScholesOptionPriceFunction(FunctionValue arg)
 {
     double S, K, r, sigma, optionValue, bookValue, timeValue;

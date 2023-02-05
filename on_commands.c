@@ -89,6 +89,7 @@ int initCommands(void)
         // For information and help usage. No function call
         {"Miscellaneous", "exit", "q", "exits Options Numerics", "exit (or quit or q)", NULL, FUNCTION_NONE, FUNCTION_NONE, noExample, false},
         {"Miscellaneous", "quit", "q", "exits Options Numerics", "exit (or quit or q)", NULL, FUNCTION_NONE, FUNCTION_NONE, noExample, true},
+        {"Miscellaneous", "commands", NULL, "list commands entered", "commands", showCommandsFunction, FUNCTION_NONE, FUNCTION_STATUS_CODE, noExample, false},
         {"Miscellaneous", "echo", NULL, "prints its arguments", "echo <arguments>", echoFunction, FUNCTION_CHARSTAR, FUNCTION_STATUS_CODE, noExample, false},
         {"Miscellaneous", "time", NULL, "prints the current time", "time", timeFunction, FUNCTION_CHARSTAR, FUNCTION_STATUS_CODE, noExample, false}
 

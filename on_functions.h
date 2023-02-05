@@ -56,6 +56,8 @@ FunctionValue timeFunction(FunctionValue arg);
 
 FunctionValue helpFunction(FunctionValue arg);
 
+FunctionValue showCommandsFunction(FunctionValue arg);
+
 // Calculator
 FunctionValue blackScholesOptionPriceFunction(FunctionValue arg);
 FunctionValue binomialOptionPriceFunction(FunctionValue arg);

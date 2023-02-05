@@ -24,7 +24,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
-#define NCOMMANDS 26
+#define NCOMMANDS 27
 
 typedef struct commandExample
 {
