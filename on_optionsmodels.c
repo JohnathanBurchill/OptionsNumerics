@@ -116,7 +116,7 @@ int binomial_option_implied_volatility(Option opt, OptionType type, double actua
         return 1;
 
     Option searchOpt = opt;
-    opt.v = 1.0;
+    searchOpt.v = 1.0;
 
     double theoreticalPrice = binomial_option_value(searchOpt, type);
     double lastTheoreticalPrice = -1.0;
@@ -153,6 +153,52 @@ int binomial_option_implied_volatility(Option opt, OptionType type, double actua
         *impliedVolatility = nan("");
     else
         *impliedVolatility = searchOpt.v;
+    return 0;
+}
+
+int binomial_option_implied_price_of_underlying(Option opt, OptionType type, double optionPrice, double *impliedPriceOfUnderlying)
+{
+    if (impliedPriceOfUnderlying == NULL)
+        return 1;
+
+    Option searchOpt = opt;
+    searchOpt.S = 0.0;
+
+    double theoreticalPrice = binomial_option_value(searchOpt, type);
+    double lastTheoreticalPrice = -1.0;
+
+    int iterations = 0;
+    double deltaS = 10;
+    double deltaSDecay = 0.9;
+
+    double priceDiff = fabs(theoreticalPrice - optionPrice);
+    while (iterations < IV_MAX_ITERATIONS && priceDiff > IV_MAX_PRICE_DIFFERENCE && fabs(theoreticalPrice - lastTheoreticalPrice) > IV_MIN_PRICE_CHANGE)
+    {
+        if (optionPrice > theoreticalPrice)
+            deltaS = deltaSDecay * fabs(deltaS);
+        else
+            deltaS = -deltaSDecay * fabs(deltaS);
+        
+        if (deltaS < 0 && -deltaS >= searchOpt.S)
+            searchOpt.v *= 0.9;
+        else
+            searchOpt.S += deltaS;
+
+        lastTheoreticalPrice = theoreticalPrice;
+        theoreticalPrice = binomial_option_value(searchOpt, type);
+        priceDiff = fabs(theoreticalPrice - optionPrice);
+        iterations++;
+    }
+    if (iterations == IV_MAX_ITERATIONS)
+    {
+        print(mainWindow, "No solution after %d iterations.\n", IV_MAX_ITERATIONS);
+        return 2;
+    }
+    // No solution - market bid was less than book value?
+    if (fabs(theoreticalPrice - lastTheoreticalPrice) < IV_MIN_PRICE_CHANGE)
+        *impliedPriceOfUnderlying= nan("");
+    else
+        *impliedPriceOfUnderlying = searchOpt.S;
     return 0;
 }
 

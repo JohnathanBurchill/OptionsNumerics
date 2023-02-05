@@ -65,6 +65,7 @@ FunctionValue optionsTimeDecayFunction(FunctionValue arg);
 
 FunctionValue geeksFunction(FunctionValue arg);
 FunctionValue impliedVolatilityFunction(FunctionValue arg);
+FunctionValue impliedPriceFunction(FunctionValue arg);
 
 FunctionValue feesFunction(FunctionValue arg);
 FunctionValue timeValueOfMoneyFunction(FunctionValue arg);

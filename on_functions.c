@@ -417,6 +417,70 @@ FunctionValue impliedVolatilityFunction(FunctionValue arg)
     return FV_OK;
 }
 
+FunctionValue impliedPriceFunction(FunctionValue arg)
+{
+    int status = 0;
+
+    double K, v, r, q, optionPrice, impliedPriceOfUnderlying;
+    Date expiry = {0};
+    int daysToExpire = 0;
+    double yearsToExpire = 0.0;
+    char type = 0;
+
+    char *params = arg.charStarValue;
+    char **tokens = NULL;
+    int nTokens = 0;
+
+    char *parameters = NULL;
+    if (params != NULL)
+        parameters = strdup(params);
+    else
+        parameters = readInput(mainWindow, "  parameters: ", ON_READINPUT_ALL);
+    if (!parameters)
+        return FV_NOTOK;
+
+    if (params == NULL && parameters[0] != 0)
+        memorize(parameters);
+        
+    char *keys[] = {"T:", "S:", "E:", "V:", "R:", "Q:", "O:", 0};
+    tokens = splitStringByKeys(parameters, keys, ',', &nTokens);
+    if (tokens == NULL)
+    {
+        status = 2;
+        goto cleanup;
+    }
+
+    type = tokens[0][strlen(keys[0])];
+    K = atof(tokens[1]+strlen(keys[1]));
+    interpretDate(tokens[2]+strlen(keys[2]), &expiry);
+    v = atof(tokens[3]+strlen(keys[3]));
+    r = atof(tokens[4]+strlen(keys[4]));
+    q = atof(tokens[5]+strlen(keys[5]));
+    optionPrice = atof(tokens[6]+strlen(keys[6]));
+
+    // Not counting weekends. Does not account for holidays
+    daysToExpire = tradingDaysToExpiry(expiry);
+
+    print(mainWindow, "%25s: %4d-%02d-%02d (in %d trading days, %0.1lf weeks)\n", "Expiry", expiry.year, expiry.month, expiry.day, daysToExpire, (double)daysToExpire / 5.0);
+
+    yearsToExpire = (double)daysToExpire / (double)OPTIONS_TRADING_DAYS_PER_YEAR;
+    Option opt = {0.0, K, r / 100.0, q / 100.0, v / 100.0, yearsToExpire};
+    int res = binomial_option_implied_price_of_underlying(opt, type, optionPrice, &impliedPriceOfUnderlying);
+    if (res != 0)
+        return (FunctionValue)res;
+
+    print(mainWindow, "%25s: $%.3lf\n", "Implied price", impliedPriceOfUnderlying);
+
+cleanup:
+    if (status == 2)
+        print(mainWindow, "parameters: T:<type (C or P)>,S:<strike>,E:<yyyy-mm-dd>,V:<underlying-volatility-%%>,R:<risk-free-rate %%>,Q:<dividend-yield %%>,O:<option-price>\n");
+
+    freeTokens(tokens, nTokens);
+    free(parameters);
+
+    return (FunctionValue)status;
+}
+
 FunctionValue feesFunction(FunctionValue arg)
 {
     char unitType = 0;
@@ -604,7 +668,7 @@ cleanup:
     if (status == 2)
         print(mainWindow, "parameters: <ticker>,T:<C(all) or P(ut),s:<min-strike>,S:<max-strike>,e:<earliest-expiry>,E:<latest-expiry>,X:<expired? Y(es) or N(o)>\n");
 
-    free(tokens);
+    freeTokens(tokens, nTokens);
     free(parameters);
     free(ticker);
 
@@ -680,7 +744,7 @@ cleanup:
     if (status == 2)
         print(mainWindow, "parameters: <ticker>,T:<C(all) or P(ut),s:<min-strike>,S:<max-strike>,e:<earliest-expiry>,E:<latest-expiry>,v:<min-value>\n");
 
-    free(tokens);
+    freeTokens(tokens, nTokens);
     free(parameters);
     free(ticker);
 

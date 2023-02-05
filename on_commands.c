@@ -57,6 +57,8 @@ int initCommands(void)
 
         {"Calculator", "implied_volatility", "iv", "prints implied volatility using binomial option model", "implied_volatility T:<C(all) or P(ut)>,S:<strike-price>,E:<expiry-date>, R:<risk-free-rate>,Q:<dividend-yield-%%>,P:<underlying-share-price>,B:<underlying-share-bid>,A:<underlying-share-ask>", impliedVolatilityFunction, FUNCTION_CHARSTAR, FUNCTION_STATUS_CODE, {"Bid and ask implied volatilities for an American option:", "T:C,S:16,E:%d-%02d-%02d,R:4.31,Q:0,P:20,B:5.70,A:6.30", "+12f", true}, false},
 
+        {"Calculator", "implied_price", "ip", "prints implied price using binomial option model", "implied_price T:<C(all) or P(ut)>,S:<strike-price>,E:<expiry-date>,V:<underlying-share-volatility-%%>,R:<risk-free-rate>,Q:<dividend-yield-%%>,O:<option-price>", impliedPriceFunction, FUNCTION_CHARSTAR, FUNCTION_STATUS_CODE, {"Implied price of underlying asset for an American option:", "T:C,S:16,E:%d-%02d-%02d,V:80,R:4.31,Q:0,O:6", "+12f", true}, false},
+
         {"Calculator", "fees", NULL, "prints total and per share trading fees", "fees U:<S(tock) or O(ption)>,N:<number-of-units>,F:<flat-fee>,P:<per-unit-fee>,X:<O(ne)- or T(wo)-way trip)>", feesFunction, FUNCTION_CHARSTAR, FUNCTION_STATUS_CODE, {"Trading fees for 10 option contracts:", "U:O,N:10,F:9.99,P:1.24,X:T", NULL, true}, false},
 
         {"Calculator", "time_value", "tv", "prints time value of money", "time_value", timeValueOfMoneyFunction, FUNCTION_CHARSTAR, FUNCTION_STATUS_CODE, noExample, false},
