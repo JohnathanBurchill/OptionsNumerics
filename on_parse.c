@@ -238,3 +238,16 @@ char **splitStringByKeys(char *string, char **keys, char delimeter, int *nTokens
     return tokens;
 
 }
+
+void freeTokens(char **tokens, int nTokens)
+{
+    if (tokens == NULL)
+        return;
+
+    for (int i = 0; i < nTokens; i++)
+        free(tokens[i]);
+
+    free(tokens);
+
+    return;
+}

@@ -31,4 +31,6 @@ bool expectedKeys(char **tokens, char **keys);
 char **splitString(char *string, char delimiter, int *nWords);
 char **splitStringByKeys(char *string, char **keys, char delimeter, int *nTokens);
 
+void freeTokens(char **tokens, int ntokens);
+
 #endif // _ON_PARSE_H
