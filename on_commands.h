@@ -23,7 +23,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
-#define NCOMMANDS 28
+#define NCOMMANDS 29
 
 typedef struct commandExample
 {

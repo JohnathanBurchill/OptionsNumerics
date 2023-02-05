@@ -48,6 +48,25 @@ FunctionValue echoFunction(ScreenState *screen, UserInputState *userInput, Funct
     return FV_OK;
 }
 
+FunctionValue testCommandsFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg)
+{
+    (void)arg;
+
+    char command[256] = {0};
+    FunctionValue argument = {0};
+
+    for (int i = 0; i < NCOMMANDS; i++)
+    {
+        char *longName = userInput->commands[i].longName;
+        argument.charStarValue = longName;
+        print(screen, screen->mainWindow, "---- Testing \'%s\' example ----\n", longName);
+        if (userInput->commands[i].function != NULL)
+            (void) examplesFunction(screen, userInput, argument);
+    }
+
+    return FV_OK;
+}
+
 FunctionValue timeFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg)
 {
     char *input = arg.charStarValue;

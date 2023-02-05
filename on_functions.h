@@ -53,6 +53,7 @@ typedef enum functionValueType
 
 // for testing, maybe other uses
 FunctionValue echoFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg);
+FunctionValue testCommandsFunction(ScreenState *screen, UserInputState *userInputState, FunctionValue arg);
 
 FunctionValue timeFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg);
 

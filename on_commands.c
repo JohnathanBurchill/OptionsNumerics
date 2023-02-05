@@ -104,7 +104,8 @@ int initCommands(Command **commands)
         {"Miscellaneous", "quit", "q", "exits Options Numerics", "exit (or quit or q)", NULL, FUNCTION_NONE, FUNCTION_NONE, noExample, true},
         {"Miscellaneous", "commands", NULL, "list commands entered", "commands", showCommandsFunction, FUNCTION_NONE, FUNCTION_STATUS_CODE, noExample, false},
         {"Miscellaneous", "echo", NULL, "prints its arguments", "echo <arguments>", echoFunction, FUNCTION_CHARSTAR, FUNCTION_STATUS_CODE, noExample, false},
-        {"Miscellaneous", "time", NULL, "prints the current time", "time", timeFunction, FUNCTION_CHARSTAR, FUNCTION_STATUS_CODE, noExample, false}
+        {"Miscellaneous", "time", NULL, "prints the current time", "time", timeFunction, FUNCTION_CHARSTAR, FUNCTION_STATUS_CODE, noExample, false},
+        {"Miscellaneous", "run_all_command_examples", NULL, "runs all command examples", "run_all_command_examples", testCommandsFunction, FUNCTION_CHARSTAR, FUNCTION_STATUS_CODE, noExample, false}
 
     };
     *commands = calloc(NCOMMANDS, sizeof(Command));
