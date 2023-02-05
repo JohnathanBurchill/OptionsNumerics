@@ -158,6 +158,9 @@ char *readInput(WINDOW *win, char *prompt, int flags)
 
     bool statusLineMsg = false;
 
+    bool recalling = false;
+    char *recallRequest = NULL;
+
     while (running)
     {
 
@@ -201,6 +204,13 @@ char *readInput(WINDOW *win, char *prompt, int flags)
         // Find
         else if ((key == ('F' & 0x1f)) && (win != statusWindow))
         {
+            if (recalling)
+            {
+                recalling = false;
+                free(recallRequest);
+                recallRequest = NULL;
+                (void)recallMostRecent();
+            }
             wmove(statusWindow, 0, 0);
             char * cmdold = strdup(cmd);
             char * ans = readInput(statusWindow, "Search for: ", ON_READINPUT_ALL | ON_READINPUT_SEARCH);
@@ -215,6 +225,13 @@ char *readInput(WINDOW *win, char *prompt, int flags)
         // Find again
         else if ((key == ('R' & 0x1f)) && (win != statusWindow))
         {
+            if (recalling)
+            {
+                recalling = false;
+                free(recallRequest);
+                recallRequest = NULL;
+                (void)recallMostRecent();
+            }
             getyx(mainWindow, cury, curx);
             searchOutputHighlight("");
             wmove(mainWindow, cury, curx);
@@ -265,6 +282,11 @@ char *readInput(WINDOW *win, char *prompt, int flags)
         statusLineMsg = false;
         if (ON_READINPUT_ONESHOT & flags)
         {
+            if (recalling)
+            {
+                free(recallRequest);
+                recallRequest = NULL;
+            }
             char keyStr[2] = {0};
             keyStr[0] = key & A_CHARTEXT;
             return strdup(keyStr);
@@ -273,6 +295,14 @@ char *readInput(WINDOW *win, char *prompt, int flags)
         {
             if (!((ON_READINPUT_HISTORY & flags) || (ON_READINPUT_ALL & flags)))
                 continue;
+
+            if (recalling)
+            {
+                recalling = false;
+                free(recallRequest);
+                recallRequest = NULL;
+                (void)recallMostRecent();
+            }
 
             recalled = recallPrevious();
             if (recalled)
@@ -293,6 +323,14 @@ char *readInput(WINDOW *win, char *prompt, int flags)
         {
             if (!((ON_READINPUT_HISTORY & flags) || (ON_READINPUT_ALL & flags)))
                 continue;
+
+            if (recalling)
+            {
+                recalling = false;
+                free(recallRequest);
+                recallRequest = NULL;
+                (void)recallMostRecent();
+            }
 
             recalled = recallNext();
             if (recalled)
@@ -322,6 +360,14 @@ char *readInput(WINDOW *win, char *prompt, int flags)
             if (!((ON_READINPUT_EDIT & flags) || (ON_READINPUT_ALL & flags)))
                 continue;
             
+            if (recalling)
+            {
+                recalling = false;
+                free(recallRequest);
+                recallRequest = NULL;
+                (void)recallMostRecent();
+            }
+
             getyx(win, cury, curx);
             if (curx > promptLength)
             {
@@ -343,6 +389,14 @@ char *readInput(WINDOW *win, char *prompt, int flags)
             if (!((ON_READINPUT_EDIT & flags) || (ON_READINPUT_ALL & flags)))
                 continue;
 
+            if (recalling)
+            {
+                recalling = false;
+                free(recallRequest);
+                recallRequest = NULL;
+                (void)recallMostRecent();
+            }
+
             getyx(win, cury, curx);
             if (curx > promptLength)
             {
@@ -358,6 +412,14 @@ char *readInput(WINDOW *win, char *prompt, int flags)
             if (!((ON_READINPUT_EDIT & flags) || (ON_READINPUT_ALL & flags)))
                 continue;
 
+            if (recalling)
+            {
+                recalling = false;
+                free(recallRequest);
+                recallRequest = NULL;
+                (void)recallMostRecent();
+            }
+
             getyx(win, cury, curx);
             if (curx - strlen(prompt) < inputLength)
             {
@@ -371,13 +433,17 @@ char *readInput(WINDOW *win, char *prompt, int flags)
         {
             if (!((ON_READINPUT_COMPLETION & flags) || (ON_READINPUT_ALL & flags)))
                 continue;
-
-            (void)recallMostRecent();
+            if (!recalling)
+            {
+                recalling = true;
+                recallRequest = strdup(cmd);
+                (void)recallMostRecent();
+            }
             do
             {
                 recalled = recallPrevious();
-            } 
-            while (recalled && strncasecmp(cmd, recalled, strlen(cmd)) != 0);
+            }
+            while (recalled && recallRequest != NULL && strncasecmp(recallRequest, recalled, strlen(recallRequest)) != 0);
 
             if (recalled)
             {
@@ -391,9 +457,21 @@ char *readInput(WINDOW *win, char *prompt, int flags)
                 wclrtoeol(win);
                 resetPromptPosition(false);
             }
+            else
+            {
+                recalling = false;
+                free(recallRequest);
+                recallRequest = NULL;
+                recallMostRecent();
+            }
         }
         else if (inputLength == ON_CMD_LENGTH - 1 || key == '\n')
         {
+            if (recalling)
+            {
+                recalling = false;
+                (void)recallMostRecent();
+            }
             cmd[inputLength] = '\0';
             getyx(win, cury, curx);
             if (curx - promptLength < strlen(cmd))
@@ -415,6 +493,12 @@ char *readInput(WINDOW *win, char *prompt, int flags)
         }
         else
         {
+            if (recalling)
+            {
+                recalling = false;
+                (void)recallMostRecent();
+            }
+
             // Insert the character
             getyx(win, cury, curx);
             if (curx - promptLength < inputLength)
