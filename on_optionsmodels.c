@@ -26,9 +26,6 @@
 
 #include <ncurses.h>
 
-extern WINDOW *mainWindow;
-extern WINDOW *statusWindow;
-
 // Black-Scholes European call
 // From ChatGPT Jan 2023
 double cdf(double x)
@@ -59,7 +56,7 @@ double blackscholes_option_value(Option opt, OptionType type)
     return price;
 }
 
-// ChatGPT 14 Jan 2023
+// Assisted by ChatGPT 14 Jan 2023
 // Binomial call or put
 double binomial_option_value(Option opt, OptionType type)
 {
@@ -145,7 +142,6 @@ int binomial_option_implied_volatility(Option opt, OptionType type, double actua
     }
     if (iterations == IV_MAX_ITERATIONS)
     {
-        print(mainWindow, "No solution after %d iterations.\n", IV_MAX_ITERATIONS);
         return 2;
     }
     // No solution - market bid was less than book value?
@@ -191,7 +187,6 @@ int binomial_option_implied_price_of_underlying(Option opt, OptionType type, dou
     }
     if (iterations == IV_MAX_ITERATIONS)
     {
-        print(mainWindow, "No solution after %d iterations.\n", IV_MAX_ITERATIONS);
         return 2;
     }
     // No solution - market bid was less than book value?
@@ -259,12 +254,13 @@ double option_geeks(Option opt, OptionType type, char *geek, double (*optionValu
     return deriv;
 }
 
+double black_scholes_option_geeks(Option opt, OptionType type, char *geek)
+{
+    return option_geeks(opt, type, geek, blackscholes_option_value);
+}
+
 double binomial_option_geeks(Option opt, OptionType type, char *geek)
 {
     return option_geeks(opt, type, geek, binomial_option_value);
 }
 
-double black_scholes_option_geeks(Option opt, OptionType type, char *geek)
-{
-    return option_geeks(opt, type, geek, blackscholes_option_value);
-}

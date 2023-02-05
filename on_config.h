@@ -17,6 +17,9 @@
 #ifndef _ON_CONFIG_H
 #define _ON_CONFIG_H
 
+#define ON_PROMPT ":) "
+#define ON_READING_CUE ":  "
+
 #define ON_OPTIONS_DIR ".optionsnumerics"
 #define ON_API_TOKENS_DIR "secrets"
 

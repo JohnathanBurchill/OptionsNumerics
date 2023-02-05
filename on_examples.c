@@ -24,12 +24,7 @@
 
 #include <ncurses.h>
 
-extern Command *commands;
-
-extern WINDOW *mainWindow;
-extern WINDOW *statusWindow;
-
-FunctionValue examplesFunction(FunctionValue arg)
+FunctionValue examplesFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg)
 {
     char *topic = arg.charStarValue;
     if (topic == NULL || topic[0] == 0)
@@ -37,17 +32,17 @@ FunctionValue examplesFunction(FunctionValue arg)
 
     for (int i = 0; i < NCOMMANDS; i++)
     {
-        if (strcasecmp(commands[i].longName, topic) == 0 || (commands[i].shortName != NULL && strcasecmp(commands[i].shortName, topic) == 0))
+        if (strcasecmp(userInput->commands[i].longName, topic) == 0 || (userInput->commands[i].shortName != NULL && strcasecmp(userInput->commands[i].shortName, topic) == 0))
         {
-            CommandExample *example = &commands[i].example;
+            CommandExample *example = &userInput->commands[i].example;
 
             if (example->summary == NULL)
             {
-                print(mainWindow, "No example available for %s\n", topic);
+                print(screen, screen->mainWindow, "No example available for %s\n", topic);
                 return FV_NOTOK;
             }
 
-            print(mainWindow, "%s\n", example->summary);
+            print(screen, screen->mainWindow, "%s\n", example->summary);
 
             char cmd[512] = {0};
             char parameters[400] = {0};
@@ -73,11 +68,11 @@ FunctionValue examplesFunction(FunctionValue arg)
             else
                 sprintf(cmd, "%s", parameters);
 
-            print(mainWindow, "%s\n", cmd);
-            memorize(cmd);
+            print(screen, screen->mainWindow, "%s\n", cmd);
+            memorize(userInput, cmd);
             FunctionValue exampleArg = {0};
             exampleArg.charStarValue = parameters;
-            (void)commands[i].function(exampleArg);
+            (void)userInput->commands[i].function(screen, userInput, exampleArg);
         }
 
     }

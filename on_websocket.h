@@ -17,6 +17,7 @@
 #ifndef _ON_WEBSOCKET_H
 #define _ON_WEBSOCKET_H
 
+#include "on_state.h"
 #include "on_remote.h"
 
 #include <stdlib.h>
@@ -25,7 +26,7 @@
 
 #define WSS_URL_BUFFER_SIZE 8192
 
-int checkWebSocketSupport(void);
+int checkWebSocketSupport(ScreenState *screen);
 
 static size_t polygonIoWssCallback(char *data, size_t size, size_t nmemb, void *userdata);
 

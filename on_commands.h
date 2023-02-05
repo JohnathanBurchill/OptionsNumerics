@@ -17,9 +17,8 @@
 #ifndef _ON_COMMANDS_H
 #define _ON_COMMANDS_H
 
+#include "on_state.h"
 #include "on_functions.h"
-#include "on_optionsmodels.h"
-#include "on_config.h"
 
 #include <stdbool.h>
 #include <stdlib.h>
@@ -41,31 +40,25 @@ typedef struct command
     char *shortName;
     char *helpMessage;
     char *usage;
-    FunctionValue (*function)(FunctionValue);
+    FunctionValue (*function)(ScreenState *, UserInputState *, FunctionValue);
     FunctionValueType functionArgumentType;
     FunctionValueType functionReturnType;
     CommandExample example;
     bool isAlias;
 } Command;
 
-typedef struct thingToRemember
-{
-    size_t timesRemembered;
-    char *thing;
-} ThingToRemember;
+int initCommands(Command **commands);
+void freeCommands(Command *commands);
 
-int initCommands(void);
-void freeCommands(void);
+void memorize(UserInputState *userInput, char *this);
+void forgetEverything(UserInputState *userInput);
+const char *recallPrevious(UserInputState *userInput);
+const char *recallNext(UserInputState *userInput);
+const char *recallMostUsed(UserInputState *userInput);
+const char *recallMostRecent(UserInputState *userInput);
 
-void memorize(char *this);
-void forgetEverything(void);
-const char *recallPrevious(void);
-const char *recallNext(void);
-const char *recallMostUsed(void);
-const char *recallMostRecent(void);
-
-int writeDownThingsToRemember(void);
-int reviseThingsToRemember(void);
-void showRememberedThings(void);
+int writeDownThingsToRemember(UserInputState *userInput);
+int reviseThingsToRemember(UserInputState *userInput);
+void showRememberedThings(ScreenState *screen, UserInputState *userInput);
 
 #endif // _ON_COMMANDS_H

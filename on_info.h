@@ -17,13 +17,12 @@
 #ifndef _ON_INFO_H
 #define _ON_INFO_H
 
+#include "on_state.h"
 #include "on_commands.h"
 
-#define READING_CUE ":  "
-
-FunctionValue aboutFunction(FunctionValue topic);
-FunctionValue licenseFunction(FunctionValue topic);
-FunctionValue helpFunction(FunctionValue topic);
-// void api_names(void);
+FunctionValue aboutFunction(ScreenState *screen, UserInputState *userInput, FunctionValue topic);
+FunctionValue licenseFunction(ScreenState *screen, UserInputState *userInput, FunctionValue topic);
+FunctionValue helpFunction(ScreenState *screen, UserInputState *userInput, FunctionValue topic);
+void api_names(ScreenState *screen);
 
 #endif // _ON_INFO_H

@@ -42,7 +42,7 @@ int saveApiToken(char *name, char* token)
     snprintf(configFile, FILENAME_MAX, "%s/%s/%s/%s", homeDir, ON_OPTIONS_DIR, ON_API_TOKENS_DIR, name);
 
     FILE *f = fopen(configFile, "w");
-    // wprintw(mainWindow, "%s", token);
+    fprintf(f, "%s", token);
     fclose(f);
 
     if (chmod(configFile, 0600))

@@ -2,4 +2,15 @@ Stream data from Polygon.IO using websocket API. Started...
 
 Fix dates.
 
-Implied price
+More calculators:
+    Maybe a "plan" function, which assists in setting up different options trades
+    It could complete with tab key, like :) plan\t -> basic / advanced, bull / bear, credit / debit, etc.
+
+    Credit spread - small moves in underlying price
+        Bull put
+        Bear call
+        Short butterfly
+        Iron butterfly
+    Debit spread
+
+    Poor man's "covered" call

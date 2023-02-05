@@ -17,11 +17,13 @@
 #ifndef _ON_UTILITIES_H
 #define _ON_UTILITIES_H
 
+#include "on_state.h"
+
 #include <stdbool.h>
 
-char continueOrQuit(int maxLineLength, bool pageBreak);
+char continueOrQuit(ScreenState *screen, UserInputState *userInput, int maxLineLength, bool pageBreak);
 
-void searchOutputHighlight(char *forThisString);
+void searchOutputHighlight(ScreenState *screen, char *forThisString);
 
 char *nanoSecondsAsStringMustFree(double nanoseconds);
 

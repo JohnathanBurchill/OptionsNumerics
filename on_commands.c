@@ -26,17 +26,25 @@
 #include <stdio.h>
 #include <unistd.h>
 
-Command *commands = NULL;
-
-extern WINDOW *mainWindow;
-
-static ThingToRemember thingsRemembered[ON_NUMBER_OF_THINGS_TO_REMEMBER] = {0};
-static int numberOfThingsRemembered = 0;
-static int thinkingOf = 0;
-static int recallDirection = -1;
-
-int initCommands(void)
+int initUserInput(UserInputState *userInput)
 {
+    userInput->prompt = ON_PROMPT;
+    userInput->promptLength = (int)strlen(userInput->prompt);
+
+    userInput->numberOfThingsRemembered = 0;
+    userInput->thinkingOf = 0;
+    userInput->recallDirection = -1;
+
+    int res = initCommands(&userInput->commands);
+
+    return res;
+}
+
+int initCommands(Command **commands)
+{
+    if (commands == NULL)
+        return 1;
+
     CommandExample noExample = {0};
     Command initcommands[NCOMMANDS] = {
         // Info and help
@@ -63,12 +71,15 @@ int initCommands(void)
 
         {"Calculator", "time_value", "tv", "prints time value of money", "time_value", timeValueOfMoneyFunction, FUNCTION_CHARSTAR, FUNCTION_STATUS_CODE, noExample, false},
 
+        // // Strategy
+        // {"Strategy", "time_value", "tv", "prints time value of money", "time_value", timeValueOfMoneyFunction, FUNCTION_CHARSTAR, FUNCTION_STATUS_CODE, noExample, false},
+
         // Polygon.IO
         {"Polygon.IO", "options_search", "os", "searches historical or current options contract ticker names", "options_search <ticker>,T:<C(all) or P(ut),s:<min-strike>,S:<max-strike>,e:<earliest-expiry>,E:<latest-expiry>,X:<expired only? T(rue) or F(alse)>", pioOptionsSearchFunction, FUNCTION_CHARSTAR, FUNCTION_STATUS_CODE, {"Options contracts search at Polygon-IO:", "GME,T:C,s:20,S:25,e:+2f,E:+12f,X:N", NULL, true}, false},
 
         {"Polygon.IO", "options_chain", "oc", "searches a stock's current options chain", "options_chain <ticker>,T:<C(all) or P(ut),s:<min-strike>,S:<max-strike>,e:<earliest-expiry>,E:<latest-expiry>,v:<min-value>", pioOptionsChainFunction, FUNCTION_CHARSTAR, FUNCTION_STATUS_CODE, {"Options chain search at Polygon-IO:", "GME,T:C,s:20,S:25,e:+2f,E:+12f,v:0", NULL, true}, false},
 
-        {"Polygon.IO", "price_history", "ph", "prints a stock's or option's daily price history", "price_history", pioPriceHistory, FUNCTION_CHARSTAR, FUNCTION_STATUS_CODE, noExample, false},
+        {"Polygon.IO", "price_history", "ph", "prints a stock's or option's daily price history", "price_history", pioPriceHistoryFunction, FUNCTION_CHARSTAR, FUNCTION_STATUS_CODE, noExample, false},
 
         {"Polygon.IO", "price_volatility", "pv", "prints a stock's or option's volatility", "price_volatility", pioVolatilityFunction, FUNCTION_CHARSTAR, FUNCTION_STATUS_CODE, noExample, false},
 
@@ -96,131 +107,131 @@ int initCommands(void)
         {"Miscellaneous", "time", NULL, "prints the current time", "time", timeFunction, FUNCTION_CHARSTAR, FUNCTION_STATUS_CODE, noExample, false}
 
     };
-    commands = calloc(NCOMMANDS, sizeof *commands);
-    if (commands == NULL)
+    *commands = calloc(NCOMMANDS, sizeof(Command));
+    if (*commands == NULL)
         return 1;
 
-    memcpy(commands, initcommands, NCOMMANDS * sizeof *commands);
+    memcpy(*commands, initcommands, NCOMMANDS * sizeof(Command));
 
     return 0;    
 }
 
-void freeCommands(void)
+void freeCommands(Command *commands)
 {
     free(commands);
 
     return;
 }
 
-void memorize(char *this)
+void memorize(UserInputState *userInput, char *this)
 {
     if (this == NULL || strlen(this) == 0)
         return;
 
-    for (int i = 0; i < numberOfThingsRemembered; i++)
+    for (int i = 0; i < userInput->numberOfThingsRemembered; i++)
     {
-        if (strcmp(this, thingsRemembered[i].thing) == 0)
+        if (strcmp(this, userInput->thingsRemembered[i].thing) == 0)
         {
-            if (i < numberOfThingsRemembered - 1)
+            if (i < userInput->numberOfThingsRemembered - 1)
             {
-                ThingToRemember pinkBunnyCar = thingsRemembered[i];
-                memmove(thingsRemembered + i, thingsRemembered + i + 1, (numberOfThingsRemembered - 1 - i) * sizeof(ThingToRemember));
-                thingsRemembered[numberOfThingsRemembered - 1] = pinkBunnyCar;
+                ThingToRemember pinkBunnyCar = userInput->thingsRemembered[i];
+                memmove(userInput->thingsRemembered + i, userInput->thingsRemembered + i + 1, (userInput->numberOfThingsRemembered - 1 - i) * sizeof(ThingToRemember));
+                userInput->thingsRemembered[userInput->numberOfThingsRemembered - 1] = pinkBunnyCar;
             }
-            thingsRemembered[numberOfThingsRemembered - 1].timesRemembered++;
-            thinkingOf = numberOfThingsRemembered;
-            recallDirection = -1;
+            userInput->thingsRemembered[userInput->numberOfThingsRemembered - 1].timesRemembered++;
+            userInput->thinkingOf = userInput->numberOfThingsRemembered;
+            userInput->recallDirection = -1;
             return;
         }
     }
 
-    if (numberOfThingsRemembered >= ON_NUMBER_OF_THINGS_TO_REMEMBER - 1)
+    if (userInput->numberOfThingsRemembered >= ON_NUMBER_OF_THINGS_TO_REMEMBER - 1)
     {
-        free(thingsRemembered[0].thing);
-        memmove(thingsRemembered, thingsRemembered + 1, (numberOfThingsRemembered - 1) * sizeof thingsRemembered);
-        numberOfThingsRemembered = ON_NUMBER_OF_THINGS_TO_REMEMBER - 1;
+        free(userInput->thingsRemembered[0].thing);
+        memmove(userInput->thingsRemembered, userInput->thingsRemembered + 1, (userInput->numberOfThingsRemembered - 1) * sizeof userInput->thingsRemembered);
+        userInput->numberOfThingsRemembered = ON_NUMBER_OF_THINGS_TO_REMEMBER - 1;
     }
-    numberOfThingsRemembered++;
-    thingsRemembered[numberOfThingsRemembered-1].timesRemembered = 1;
-    numberOfThingsRemembered[thingsRemembered-1].thing = strdup(this);
-    thinkingOf = numberOfThingsRemembered;
-    recallDirection = -1;
+    userInput->numberOfThingsRemembered++;
+    userInput->thingsRemembered[userInput->numberOfThingsRemembered-1].timesRemembered = 1;
+    userInput->numberOfThingsRemembered[userInput->thingsRemembered-1].thing = strdup(this);
+    userInput->thinkingOf = userInput->numberOfThingsRemembered;
+    userInput->recallDirection = -1;
 
     return;
 }
 
-void forgetEverything(void)
+void forgetEverything(UserInputState *userInput)
 {
-    for (int i = 0; i < numberOfThingsRemembered; i++)
+    for (int i = 0; i < userInput->numberOfThingsRemembered; i++)
     {
-        free(thingsRemembered[i].thing);
-        thingsRemembered[i].thing = NULL;
-        thingsRemembered[i].timesRemembered = 0;
+        free(userInput->thingsRemembered[i].thing);
+        userInput->thingsRemembered[i].thing = NULL;
+        userInput->thingsRemembered[i].timesRemembered = 0;
     }
-    numberOfThingsRemembered = 0;
-    thinkingOf = 0;
+    userInput->numberOfThingsRemembered = 0;
+    userInput->thinkingOf = 0;
     return;
 }
 
-const char *recallPrevious(void)
+const char *recallPrevious(UserInputState *userInput)
 {
     const char *thing = NULL;
-    if (recallDirection == 1)
+    if (userInput->recallDirection == 1)
     {
-        recallDirection = -1;
-        thinkingOf--;
+        userInput->recallDirection = -1;
+        userInput->thinkingOf--;
     }
-    if (thinkingOf > 0 && thinkingOf <= numberOfThingsRemembered)
-        thing = thingsRemembered[thinkingOf-1].thing;
+    if (userInput->thinkingOf > 0 && userInput->thinkingOf <= userInput->numberOfThingsRemembered)
+        thing = userInput->thingsRemembered[userInput->thinkingOf-1].thing;
 
-    thinkingOf--;
-    if (thinkingOf < 0)
-        thinkingOf = 0;
+    userInput->thinkingOf--;
+    if (userInput->thinkingOf < 0)
+        userInput->thinkingOf = 0;
 
     return thing;
 }
 
-const char *recallNext(void)
+const char *recallNext(UserInputState *userInput)
 {
     const char *thing = NULL;
-    if (recallDirection == -1)
+    if (userInput->recallDirection == -1)
     {
-        recallDirection = 1;
-        thinkingOf++;
+        userInput->recallDirection = 1;
+        userInput->thinkingOf++;
     }
-    if (thinkingOf > 0 && thinkingOf < numberOfThingsRemembered)
-        thing = thingsRemembered[thinkingOf].thing;
+    if (userInput->thinkingOf > 0 && userInput->thinkingOf < userInput->numberOfThingsRemembered)
+        thing = userInput->thingsRemembered[userInput->thinkingOf].thing;
 
-    thinkingOf++;
-    if (thinkingOf > numberOfThingsRemembered)
-        thinkingOf = numberOfThingsRemembered + 1;
+    userInput->thinkingOf++;
+    if (userInput->thinkingOf > userInput->numberOfThingsRemembered)
+        userInput->thinkingOf = userInput->numberOfThingsRemembered + 1;
 
     return thing;
 }
 
-const char *recallMostUsed(void)
+const char *recallMostUsed(UserInputState *userInput)
 {
-    int mostUsed = thingsRemembered[0].timesRemembered;
-    for (int i = 1; i < numberOfThingsRemembered; i++)
+    int mostUsed = userInput->thingsRemembered[0].timesRemembered;
+    for (int i = 1; i < userInput->numberOfThingsRemembered; i++)
     {
         // If same number of times remembered, use most recent
-        if (thingsRemembered[i].timesRemembered >= mostUsed)
+        if (userInput->thingsRemembered[i].timesRemembered >= mostUsed)
         {
-            mostUsed = thingsRemembered[i].timesRemembered;
-            thinkingOf = i + 1;
+            mostUsed = userInput->thingsRemembered[i].timesRemembered;
+            userInput->thinkingOf = i + 1;
         }
     }
 
-    return thingsRemembered[thinkingOf - 1].thing;
+    return userInput->thingsRemembered[userInput->thinkingOf - 1].thing;
 }
 
-const char *recallMostRecent(void)
+const char *recallMostRecent(UserInputState *userInput)
 {
-    thinkingOf = numberOfThingsRemembered;
-    return recallPrevious();
+    userInput->thinkingOf = userInput->numberOfThingsRemembered;
+    return recallPrevious(userInput);
 }
 
-int writeDownThingsToRemember(void)
+int writeDownThingsToRemember(UserInputState *userInput)
 {
     char *homeDir = getenv("HOME");
     if (access(homeDir, F_OK) != 0)
@@ -233,15 +244,15 @@ int writeDownThingsToRemember(void)
     if (f == NULL)
         return 1;
 
-    for (int i = 0; i < numberOfThingsRemembered; i++)
-        fprintf(f, "%lu %s\n", thingsRemembered[i].timesRemembered, thingsRemembered[i].thing);
+    for (int i = 0; i < userInput->numberOfThingsRemembered; i++)
+        fprintf(f, "%lu %s\n", userInput->thingsRemembered[i].timesRemembered, userInput->thingsRemembered[i].thing);
 
     fclose(f);
 
     return 0;
 }
 
-int reviseThingsToRemember(void)
+int reviseThingsToRemember(UserInputState *userInput)
 {
     char *homeDir = getenv("HOME");
     if (access(homeDir, F_OK) != 0)
@@ -250,12 +261,12 @@ int reviseThingsToRemember(void)
     char thingsToRememberFile[FILENAME_MAX];
     snprintf(thingsToRememberFile, FILENAME_MAX, "%s/%s/%s", homeDir, ON_OPTIONS_DIR, ON_THINGS_TO_REMEMBER_FILENAME);
 
-    numberOfThingsRemembered = 0;
+    userInput->numberOfThingsRemembered = 0;
 
     FILE *f = fopen(thingsToRememberFile, "r");
     if (f == NULL)
     {
-        bzero(thingsRemembered, sizeof(ThingToRemember) * ON_NUMBER_OF_THINGS_TO_REMEMBER);
+        bzero(userInput->thingsRemembered, sizeof(ThingToRemember) * ON_NUMBER_OF_THINGS_TO_REMEMBER);
         return 1;
     }
 
@@ -266,30 +277,30 @@ int reviseThingsToRemember(void)
 
     char *res = fgets(lineBuf, ON_BUFFERED_LINE_LENGTH, f);
     char *c = NULL;
-    while (res != NULL && numberOfThingsRemembered < ON_NUMBER_OF_THINGS_TO_REMEMBER)
+    while (res != NULL && userInput->numberOfThingsRemembered < ON_NUMBER_OF_THINGS_TO_REMEMBER)
     {
-        nTimes = atoi(lineBuf);       
+        nTimes = atoi(lineBuf);
         c = lineBuf;
         while (*c != ' ' && c < lineBuf + 999)
             c++;
         c++;
         c[strlen(c)-1] = '\0';
-        thingsRemembered[numberOfThingsRemembered].timesRemembered = nTimes;
-        thingsRemembered[numberOfThingsRemembered].thing = strdup(c);
+        userInput->thingsRemembered[userInput->numberOfThingsRemembered].timesRemembered = nTimes;
+        userInput->thingsRemembered[userInput->numberOfThingsRemembered].thing = strdup(c);
         res = fgets(lineBuf, ON_BUFFERED_LINE_LENGTH, f);
-        numberOfThingsRemembered++;
+        userInput->numberOfThingsRemembered++;
     }
 
-    thinkingOf = numberOfThingsRemembered;
+    userInput->thinkingOf = userInput->numberOfThingsRemembered;
 
     return 0;
 }
 
-void showRememberedThings(void)
+void showRememberedThings(ScreenState *screen, UserInputState *userInput)
 {
-    print(mainWindow, "Remembered:\n");
-    for (int i = 0; i < numberOfThingsRemembered; i++)
-        print(mainWindow, " %4d %s (%ld)\n", i + 1, thingsRemembered[i].thing, thingsRemembered[i].timesRemembered);
+    print(screen, screen->mainWindow, "Remembered:\n");
+    for (int i = 0; i < userInput->numberOfThingsRemembered; i++)
+        print(screen, screen->mainWindow, " %4d %s (%ld)\n", i + 1, userInput->thingsRemembered[i].thing, userInput->thingsRemembered[i].timesRemembered);
 
     return;
 }

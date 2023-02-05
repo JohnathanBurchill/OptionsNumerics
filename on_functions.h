@@ -17,6 +17,8 @@
 #ifndef _ON_FUNCTIONS_H
 #define _ON_FUNCTIONS_H
 
+#include "on_state.h"
+
 typedef union functionValue
 {
     char charValue;
@@ -50,41 +52,41 @@ typedef enum functionValueType
 } FunctionValueType;
 
 // for testing, maybe other uses
-FunctionValue echoFunction(FunctionValue arg);
+FunctionValue echoFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg);
 
-FunctionValue timeFunction(FunctionValue arg);
+FunctionValue timeFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg);
 
-FunctionValue helpFunction(FunctionValue arg);
+FunctionValue helpFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg);
 
-FunctionValue showCommandsFunction(FunctionValue arg);
+FunctionValue showCommandsFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg);
 
 // Calculator
-FunctionValue blackScholesOptionPriceFunction(FunctionValue arg);
-FunctionValue binomialOptionPriceFunction(FunctionValue arg);
-FunctionValue optionsTimeDecayFunction(FunctionValue arg);
+FunctionValue blackScholesOptionPriceFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg);
+FunctionValue binomialOptionPriceFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg);
+FunctionValue optionsTimeDecayFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg);
 
-FunctionValue geeksFunction(FunctionValue arg);
-FunctionValue impliedVolatilityFunction(FunctionValue arg);
-FunctionValue impliedPriceFunction(FunctionValue arg);
+FunctionValue geeksFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg);
+FunctionValue impliedVolatilityFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg);
+FunctionValue impliedPriceFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg);
 
-FunctionValue feesFunction(FunctionValue arg);
-FunctionValue timeValueOfMoneyFunction(FunctionValue arg);
+FunctionValue feesFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg);
+FunctionValue timeValueOfMoneyFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg);
 
 // Data
-FunctionValue pioOptionsSearchFunction(FunctionValue arg);
-FunctionValue pioOptionsChainFunction(FunctionValue arg);
-FunctionValue pioPriceHistory(FunctionValue arg);
-FunctionValue pioVolatilityFunction(FunctionValue arg);
-FunctionValue pioLatestPriceFunction(FunctionValue arg);
-FunctionValue pioPreviousCloseFunction(FunctionValue arg);
+FunctionValue pioOptionsSearchFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg);
+FunctionValue pioOptionsChainFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg);
+FunctionValue pioPriceHistoryFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg);
+FunctionValue pioVolatilityFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg);
+FunctionValue pioLatestPriceFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg);
+FunctionValue pioPreviousCloseFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg);
 
-FunctionValue fredSOFRFunction(FunctionValue arg);
+FunctionValue fredSOFRFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg);
 
-FunctionValue questradeConnectionFunction(FunctionValue arg);
+FunctionValue questradeConnectionFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg);
 
 // What if?
-FunctionValue optionsIncomeReinvestedFunction(FunctionValue arg);
+FunctionValue optionsIncomeReinvestedFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg);
 
-FunctionValue optionsExerciseChanceFunction(FunctionValue arg);
+FunctionValue optionsExerciseChanceFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg);
 
 #endif // _ON_FUNCTIONS_H

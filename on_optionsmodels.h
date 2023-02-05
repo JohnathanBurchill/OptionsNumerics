@@ -42,10 +42,14 @@ double blackscholes_option_value(Option opt, OptionType type);
 #define IV_MIN_PRICE_CHANGE 0.000001
 
 double binomial_option_value(Option opt, OptionType type);
-double option_geeks(Option opt, OptionType type, char *geek, double (*optionValueFunction)(Option, OptionType));
-double binomial_option_geeks(Option opt, OptionType type, char *geek);
-double black_scholes_option_geeks(Option opt, OptionType type, char *geek);
 int binomial_option_implied_volatility(Option opt, OptionType type, double actualPrice, double *impliedVolatility);
 int binomial_option_implied_price_of_underlying(Option opt, OptionType type, double optionPrice, double *impliedPriceOfUnderlying);
+
+
+// Option geeks
+double option_geeks(Option opt, OptionType type, char *geek, double (*optionValueFunction)(Option, OptionType));
+
+double black_scholes_option_geeks(Option opt, OptionType type, char *geek);
+double binomial_option_geeks(Option opt, OptionType type, char *geek);
 
 #endif // _ON_OPTIONSMODELS_H

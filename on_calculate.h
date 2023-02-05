@@ -17,13 +17,14 @@
 #ifndef _ON_CALCULATE_H
 #define _ON_CALCULATE_H
 
+#include "on_state.h"
 #include "on_optionstiming.h"
 
 void setResult(double newResult);
 double getResult();
-void calculate(char *expression);
+void calculate(ScreenState *screen, char *expression);
 
-double timeValue(double amount, double annualRatePercent, Date date1, Date date2);
+double timeValue(ScreenState *screen, double amount, double annualRatePercent, Date date1, Date date2);
 
 #endif // _ON_CALCULATE_H
 

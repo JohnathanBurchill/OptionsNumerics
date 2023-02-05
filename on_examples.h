@@ -17,10 +17,11 @@
 #ifndef _ON_EXAMPLES_H
 #define _ON_EXAMPLES_H
 
+#include "on_state.h"
 #include "on_commands.h"
 
 #include <stdbool.h>
 
-FunctionValue examplesFunction(FunctionValue arg);
+FunctionValue examplesFunction(ScreenState *screen, UserInputState *userInput, FunctionValue arg);
 
 #endif // _ON_EXAMPLES_H

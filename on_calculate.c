@@ -30,9 +30,6 @@ static double result = 0.0;
 
 #include <ncurses.h>
 
-extern WINDOW *mainWindow;
-extern WINDOW *statusWindow;
-
 void setResult(double newResult)
 {
     result = newResult;
@@ -44,14 +41,14 @@ double getResult()
     return result;
 }
 
-void calculate(char *expression)
+void calculate(ScreenState *screen, char *expression)
 {
     if (expression == NULL)
         return;
 
     if (strcasecmp("result", expression) == 0)
     {
-        print(mainWindow, "%lg\n", result);
+        print(screen, screen->mainWindow, "%lg\n", result);
         return;
     }
 
@@ -132,7 +129,7 @@ void calculate(char *expression)
             default:
                 goto cleanup;
         }
-        print(mainWindow, "%lg\n", result);
+        print(screen, screen->mainWindow, "%lg\n", result);
     }
 
 cleanup:
@@ -142,10 +139,11 @@ cleanup:
 
 }
 
-double timeValue(double amount, double annualRatePercent, Date date1, Date date2)
+double timeValue(ScreenState *screen, double amount, double annualRatePercent, Date date1, Date date2)
 {
     // TODO fix historical dates
-    wprintw(mainWindow, "%d-%02d-%02d, %d-%02d-%02d\n", date1.year, date1.month, date1.day, date2.year, date2.month, date2.day);
+    if (screen->mainWindow != NULL)
+        wprintw(screen->mainWindow, "%d-%02d-%02d, %d-%02d-%02d\n", date1.year, date1.month, date1.day, date2.year, date2.month, date2.day);
     struct tm d1 = {0};
     d1.tm_year = date1.year - 1900;
     d1.tm_mon = date1.month - 1;
@@ -161,17 +159,17 @@ double timeValue(double amount, double annualRatePercent, Date date1, Date date2
     time_t ta = -200L * 365L * 86400L;
     struct tm *d = gmtime(&ta);
     time_t tb = timegm(d);
-    print(mainWindow, "tb: %ld\n", tb);
-    print(mainWindow, "From gmtime: %d-%02d-%02d\n", d->tm_year+1900, d->tm_mon+1, d->tm_mday);
-    print(mainWindow, "%ld %ld\n", timegm(&d1), timelocal(&d1));
-    print(mainWindow, "t1: %ld, t2: %ld\n", t1, t2);
+    print(screen, screen->mainWindow, "tb: %ld\n", tb);
+    print(screen, screen->mainWindow, "From gmtime: %d-%02d-%02d\n", d->tm_year+1900, d->tm_mon+1, d->tm_mday);
+    print(screen, screen->mainWindow, "%ld %ld\n", timegm(&d1), timelocal(&d1));
+    print(screen, screen->mainWindow, "t1: %ld, t2: %ld\n", t1, t2);
     double seconds = (double)t2 - (double)t1;
     double days = seconds / 86400.0; // Ignore leap seconds
     double years = days / 365.25; // Close enough
     double power = pow(1 + annualRatePercent / 100.0, years);
     double value = amount * power;
 
-    print(mainWindow, "power: %lf\n", power);
+    print(screen, screen->mainWindow, "power: %lf\n", power);
     return value;
 
 }

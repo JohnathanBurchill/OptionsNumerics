@@ -14,49 +14,18 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "on_state.h"
 #include "on_config.h"
 #include "on_commands.h"
-#include "on_dataproviders.h"
-#include "on_optionsmodels.h"
 #include "on_calculate.h"
 #include "on_info.h"
-#include "on_examples.h"
 #include "on_websocket.h"
 #include "on_screen_io.h"
 
-#include <stdio.h>
-#include <stdbool.h>
-#include <stdlib.h>
 #include <signal.h>
-#include <locale.h>
 #include <string.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/select.h>
-#include <sys/errno.h>
-
-#include <langinfo.h>
-
-#include <curl/curl.h>
-
-#include <ncurses.h>
-
-extern Command *commands;
-
-WINDOW *mainWindow = NULL;
-long mainWindowLines = 0;
-long mainWindowTopLine = 0;
-int statusHeight = 0;
-int mainWindowViewHeight = 0;
-
-WINDOW *statusWindow = NULL;
-WINDOW *calculatorWindow = NULL; 
 
 volatile sig_atomic_t running = 1;
-char *prompt = NULL;
-char cmd[ON_CMD_LENGTH] = {0};
-char searchText[ON_CMD_LENGTH] = {0};
-long lastSearchResultLine = 0;
 
 static void interrupthandler(int sig)
 {
@@ -66,32 +35,20 @@ static void interrupthandler(int sig)
 
 int main(void)
 {
-    int res = initCommands();
+
+    int res = 0;
+
+    ScreenState screen = {0};
+    res = initScreen(&screen);
     if (res != 0)
-    {
-        printf("Error inializing commands\n");
-        return 1;
-    }
+        return 2;
+
+    UserInputState userInput = {0};
+    res = initUserInput(&userInput);
+    if (res != 0)
+        return 3;
 
     bool handledCommand = false;
-
-    // NCurses setup
-    initscr();
-
-    statusHeight = 1;
-    statusWindow = newwin(statusHeight, COLS, 0, 0);
-    wattron(statusWindow, A_REVERSE);
-    wrefresh(statusWindow);
-
-    mainWindowViewHeight = LINES - statusHeight;
-
-    mainWindow = newpad(ON_BUFFERED_LINES + 500, ON_BUFFERED_LINE_LENGTH);
-    noecho();
-    raw();
-    keypad(statusWindow, true);
-    keypad(mainWindow, true);
-    intrflush(NULL, false);
-    scrollok(mainWindow, true);
 
     struct sigaction intact = {0};
     intact.sa_handler = interrupthandler;
@@ -99,54 +56,51 @@ int main(void)
 
     CURLcode curlGlobal = curl_global_init(CURL_GLOBAL_ALL);
     if (curlGlobal != 0)
-        mvwprintw(statusWindow, 0, 1, "Internet unavailable. Some functions will not work.\n");
-    wrefresh(statusWindow);
+        mvwprintw(screen.statusWindow, 0, 1, "Internet unavailable. Some functions will not work.\n");
+    wrefresh(screen.statusWindow);
 
     FunctionValue argument = FV_OK;
 
-    int linesRestored = restoreScreenHistory();
+    int linesRestored = restoreScreenHistory(&screen);
     // Show about message if there is no previous log
     if (linesRestored == 0)
-        aboutFunction(argument);
+        aboutFunction(&screen, &userInput, argument);
     else
-        print(mainWindow, "%s%d lines of history restored\n", READING_CUE, linesRestored);
+        print(&screen, screen.mainWindow, "%s%d lines of history restored\n", ON_READING_CUE, linesRestored);
 
+    reviseThingsToRemember(&userInput);
 
-    reviseThingsToRemember();
+    checkWebSocketSupport(&screen);
 
-    checkWebSocketSupport();
-
-    timeFunction((FunctionValue)"New session started at ");
-    prompt = ":) ";
-    int promptLength = (int)strlen(prompt);
-    print(mainWindow, "%s\n", READING_CUE);
+    timeFunction(&screen, &userInput, (FunctionValue)"New session started at ");
+    print(&screen, screen.mainWindow, "%s\n", ON_READING_CUE);
 
     while (running)
     {
         handledCommand = false;
 
-        readInput(mainWindow, prompt, ON_READINPUT_ALL | ON_READINPUT_STATUS_WINDOW | ON_READINPUT_NO_COPY);
+        readInput(&screen, &userInput, screen.mainWindow, userInput.prompt, ON_READINPUT_ALL | ON_READINPUT_STATUS_WINDOW | ON_READINPUT_NO_COPY);
 
-        if (strcmp("exit", cmd) == 0 || strcmp("quit", cmd) == 0 || strcmp("q", cmd) == 0)
+        if (strcmp("exit", userInput.cmd) == 0 || strcmp("quit", userInput.cmd) == 0 || strcmp("q", userInput.cmd) == 0)
             break;
-
+            
         for (int i = 0; i < NCOMMANDS; i++)
         {
-            char *longName = commands[i].longName;
-            char *shortName = commands[i].shortName;
-
-            if (strncasecmp(longName, cmd, strlen(longName)) == 0 || (shortName != NULL && strncasecmp(shortName, cmd, strlen(shortName)) == 0))
+            char *longName = userInput.commands[i].longName;
+            char *shortName = userInput.commands[i].shortName;
+            
+            if (strncasecmp(longName, userInput.cmd, strlen(longName)) == 0 || (shortName != NULL && strncasecmp(shortName, userInput.cmd, strlen(shortName)) == 0))
             {
-                if (strlen(cmd) > strlen(longName) + 1 && cmd[strlen(longName)] == ' ')
-                    argument.charStarValue = cmd + strlen(longName) + 1;
-                else if (shortName != NULL && strlen(cmd) > strlen(shortName) + 1 && cmd[strlen(shortName)] == ' ')
-                    argument.charStarValue = cmd + strlen(shortName) + 1;
+                if (strlen(userInput.cmd) > strlen(longName) + 1 && userInput.cmd[strlen(longName)] == ' ')
+                    argument.charStarValue = userInput.cmd + strlen(longName) + 1;
+                else if (shortName != NULL && strlen(userInput.cmd) > strlen(shortName) + 1 && userInput.cmd[strlen(shortName)] == ' ')
+                    argument.charStarValue = userInput.cmd + strlen(shortName) + 1;
                 else
                     argument.charStarValue = NULL;
-                if (commands[i].function != NULL)
+                if (userInput.commands[i].function != NULL)
                 {
-                    memorize(cmd);
-                    (void) commands[i].function(argument);
+                    memorize(&userInput, userInput.cmd);
+                    (void) userInput.commands[i].function(&screen, &userInput, argument);
                     handledCommand = true;
                 }
                 break;
@@ -155,27 +109,26 @@ int main(void)
         if (!handledCommand)
         {
             // Try evaluating a math expression
-            if (strlen(cmd) > 0)
+            if (strlen(userInput.cmd) > 0)
             {
-                memorize(cmd);
-                calculate(cmd);
+                memorize(&userInput, userInput.cmd);
+                calculate(&screen, userInput.cmd);
             }
         }
-        cmd[0] = '\0';
-        resetPromptPosition(false);
-
+        userInput.cmd[0] = '\0';
+        // resetPromptPosition(&screen, false);
     }
 
     curl_global_cleanup();
 
-    writeDownThingsToRemember();
-    forgetEverything();
+    writeDownThingsToRemember(&userInput);
+    forgetEverything(&userInput);
 
-    freeCommands();
+    freeCommands(userInput.commands);
 
-    timeFunction((FunctionValue)"Session stopped at ");
+    timeFunction(&screen, &userInput, (FunctionValue)"Session stopped at ");
 
-    saveScreenHistory();
+    saveScreenHistory(&screen);
 
     endwin();
 

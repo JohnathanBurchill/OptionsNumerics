@@ -21,6 +21,7 @@
 #define AUTH_HEADER_BUFFER_SIZE 512
 #define JSON_DATA_BUFFER_SIZE 8192
 
+#include "on_state.h"
 #include "on_parse.h"
 #include "on_data.h"
 
@@ -61,10 +62,10 @@ typedef struct {
     double *closes;
 } PriceData;
 
-int updateQuestradeAccessToken(void);
-double questradeStockQuote(char *symbol);
+int updateQuestradeAccessToken(ScreenState *screen);
+double questradeStockQuote(ScreenState *screen, char *symbol);
 
-int fredSOFR(double *sofr);
+int fredSOFR(ScreenState *screen, double *sofr);
 
 enum polygonMarket
 {
@@ -74,18 +75,17 @@ enum polygonMarket
     CRYPTO
 };
 
-json_t *polygonIoRESTRequest(const char *requestUrl);
+json_t *polygonIoRESTRequest(ScreenState *screen, const char *requestUrl);
 
-int polygonIoOptionsSearch(char *ticker, char type, double minstrike, double maxstrike, Date date1, Date date2, bool expired, char **nextPagePtr);
-int polygonIoOptionsChain(char *ticker, char type, double minstrike, double maxstrike, Date date1, Date date2, double minpremium, char **nextPagePtr);
-int polygonIoPriceHistory(char *symbol, Date startDate, Date stopDate, PriceData *priceData);
-int polygonIoVolatility(char *symbol, Date startDate, Date stopDate, double *volatility);
-int polygonIoLatestPrice(char *ticker, TickerData *tickerData, OptionsData *optionsData, bool verbose);
-int printLatestPriceStocks(json_t *root);
-int printLatestPriceOptions(json_t *root);
+int polygonIoOptionsSearch(ScreenState *screen, char *ticker, char type, double minstrike, double maxstrike, Date date1, Date date2, bool expired, char **nextPagePtr);
+int polygonIoOptionsChain(ScreenState *screen, char *ticker, char type, double minstrike, double maxstrike, Date date1, Date date2, double minpremium, char **nextPagePtr);
+int polygonIoPriceHistory(ScreenState *screen, char *symbol, Date startDate, Date stopDate, PriceData *priceData);
+int polygonIoVolatility(ScreenState *screen, char *symbol, Date startDate, Date stopDate, double *volatility);
+int polygonIoLatestPrice(ScreenState *screen, char *ticker, TickerData *tickerData, OptionsData *optionsData, bool verbose);
+int printLatestPriceStocks(ScreenState *screen, json_t *root);
+int printLatestPriceOptions(ScreenState *screen, json_t *root);
 
-int polygonIoPreviousClose(char *ticker);
-
+int polygonIoPreviousClose(ScreenState *screen, char *ticker);
 
 
 #endif // _ON_DATAPROVIDERS_H

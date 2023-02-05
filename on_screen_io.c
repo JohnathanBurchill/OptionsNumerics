@@ -29,39 +29,63 @@
 
 #include <ncurses.h>
 
-extern WINDOW *mainWindow;
-extern WINDOW *statusWindow;
-
-extern long mainWindowLines;
-extern long mainWindowTopLine;
-
-extern int statusHeight;
-extern int mainWindowViewHeight;
-
-extern char cmd[ON_CMD_LENGTH];
-
 extern volatile sig_atomic_t running;
 
-extern char searchText[ON_CMD_LENGTH];
-
-void prepareForALotOfOutput(long nLines)
+int initScreen(ScreenState *screen)
 {
-    if (mainWindowLines >= ON_BUFFERED_LINES - nLines)
+    int status = OK;
+    initscr();
+    screen->statusHeight = 1;
+    screen->statusWindow = newwin(screen->statusHeight, COLS, 0, 0);
+    status |= (screen->statusWindow == NULL);
+    status |= wattron(screen->statusWindow, A_REVERSE);
+    status |= wrefresh(screen->statusWindow);
+
+    screen->streamWindowHeight = 1;
+    screen->streamWindow = newwin(screen->streamWindowHeight, COLS, 0, 0);
+    status |= (screen->streamWindow == NULL);
+
+    screen->mainWindowViewHeight = LINES - screen->statusHeight - screen->streamWindowHeight;
+    screen->mainWindow = newpad(ON_BUFFERED_LINES + 500, ON_BUFFERED_LINE_LENGTH);
+    status |= (screen->mainWindow == NULL);
+
+    status |= noecho();
+    status |= raw();
+    status |= keypad(screen->statusWindow, true);
+    status |= keypad(screen->mainWindow, true);
+    status |= intrflush(NULL, false);
+    status |= scrollok(screen->mainWindow, true);
+
+    screen->lastSearchResultLine = 0;
+
+    return status;
+
+}
+
+void prepareForALotOfOutput(ScreenState *screen, long nLines)
+{
+    if (screen == NULL)
+        return;
+
+    if (screen->mainWindowLines >= ON_BUFFERED_LINES - nLines)
     {
-        long freeLines = ON_BUFFERED_LINES - mainWindowLines;
+        long freeLines = ON_BUFFERED_LINES - screen->mainWindowLines;
         long shift = nLines - freeLines;
         int y = 0, x = 0;
-        getyx(mainWindow, y, x);
-        wscrl(mainWindow, shift);
-        wmove(mainWindow, y - shift, x);
-        mainWindowLines -= shift;
+        getyx(screen->mainWindow, y, x);
+        wscrl(screen->mainWindow, shift);
+        wmove(screen->mainWindow, y - shift, x);
+        screen->mainWindowLines -= shift;
     }
 
     return;
 }
 
-int print(WINDOW *window, const char *fmt, ...)
+int print(ScreenState *screen, WINDOW *window, const char *fmt, ...)
 {
+    if (screen == NULL)
+        return 0;
+
     int y0 = 0, x0 = 0;
     int y1 = 0, x1 = 0;
     getyx(window, y0, x0);
@@ -74,8 +98,8 @@ int print(WINDOW *window, const char *fmt, ...)
     getyx(window, y1, x1);
     if (y1 > y0)
     {
-        if (mainWindowLines < ON_BUFFERED_LINES)
-            mainWindowLines += y1 - y0;
+        if (screen->mainWindowLines < ON_BUFFERED_LINES)
+            screen->mainWindowLines += y1 - y0;
         else
         {
             wscrl(window, y1 - y0);
@@ -86,8 +110,11 @@ int print(WINDOW *window, const char *fmt, ...)
     return res;
 }
 
-int mvprint(WINDOW *window, int row, int col, const char *fmt, ...)
+int mvprint(ScreenState *screen, WINDOW *window, int row, int col, const char *fmt, ...)
 {
+    if (screen == NULL)
+        return 0;
+
     int y1 = 0, x1 = 0;
 
     va_list args;
@@ -99,8 +126,8 @@ int mvprint(WINDOW *window, int row, int col, const char *fmt, ...)
     getyx(window, y1, x1);
     if (y1 > row)
     {
-        if (mainWindowLines < ON_BUFFERED_LINES)
-            mainWindowLines += y1 - row;
+        if (screen->mainWindowLines < ON_BUFFERED_LINES)
+            screen->mainWindowLines += y1 - row;
         else
         {
             wscrl(window, y1 - row);
@@ -111,19 +138,22 @@ int mvprint(WINDOW *window, int row, int col, const char *fmt, ...)
     return res;
 }
 
-void resetPromptPosition(bool toBottom)
+void resetPromptPosition(ScreenState *screen, bool toBottom)
 {
+    if (screen == NULL)
+        return;
+
     int y = 0, x = 0;
-    getyx(mainWindow, y, x);
-    if (y - mainWindowTopLine > mainWindowViewHeight - 1 || toBottom)
-        mainWindowTopLine = mainWindowLines - (mainWindowViewHeight);
-    if (mainWindowTopLine < 0)
-        mainWindowTopLine = 0;
+    getyx(screen->mainWindow, y, x);
+    if (y - screen->mainWindowTopLine > screen->mainWindowViewHeight - 1 || toBottom)
+        screen->mainWindowTopLine = screen->mainWindowLines - (screen->mainWindowViewHeight);
+    if (screen->mainWindowTopLine < 0)
+        screen->mainWindowTopLine = 0;
 
     return;
 }
 
-char *readInput(WINDOW *win, char *prompt, int flags)
+char *readInput(ScreenState *screen, UserInputState *userInput, WINDOW *win, char *prompt, int flags)
 {
     int cury = 0;
     int curx = 0;
@@ -135,15 +165,15 @@ char *readInput(WINDOW *win, char *prompt, int flags)
 
     const char *recalled = NULL;
 
-    print(win, "%s", prompt);
+    print(screen, win, "%s", prompt);
     if (ON_READINPUT_SEARCH & flags)
-        wattroff(statusWindow, A_REVERSE);
+        wattroff(screen->statusWindow, A_REVERSE);
 
     wclrtoeol(win);
     if (!(ON_READINPUT_SEARCH & flags))
-        resetPromptPosition(false);
+        resetPromptPosition(screen, false);
 
-    cmd[0] = '\0';
+    userInput->cmd[0] = '\0';
 
     bool canScroll = false;
     double scrollRate = ON_SCROLL_RATE;
@@ -164,34 +194,47 @@ char *readInput(WINDOW *win, char *prompt, int flags)
     while (running)
     {
 
-        canScroll = (((ON_READINPUT_SCROLL & flags) || (ON_READINPUT_ALL & flags)) && mainWindowLines > LINES);
+        canScroll = (((ON_READINPUT_SCROLL & flags) || (ON_READINPUT_ALL & flags)) && screen->mainWindowLines > LINES);
 
-        if (!statusLineMsg && win != statusWindow && ((ON_READINPUT_STATUS_WINDOW & flags) || (ON_READINPUT_ALL & flags)))
+        if (!statusLineMsg && win != screen->statusWindow && ((ON_READINPUT_STATUS_WINDOW & flags) || (ON_READINPUT_ALL & flags)))
         {
-            startLine = mainWindowTopLine + 1;
-            if (mainWindowLines - mainWindowTopLine > mainWindowViewHeight)
-                stopLine = mainWindowTopLine + mainWindowViewHeight;
+            startLine = screen->mainWindowTopLine + 1;
+            if (screen->mainWindowLines - screen->mainWindowTopLine > screen->mainWindowViewHeight)
+                stopLine = screen->mainWindowTopLine + screen->mainWindowViewHeight;
             else
-                stopLine = mainWindowLines;
-            mvwprintw(statusWindow, 0, 0, "Options Numerics; showing lines %d - %d of %ld", startLine, stopLine, mainWindowLines);
+                stopLine = screen->mainWindowLines;
+            mvwprintw(screen->statusWindow, 0, 0, "Options Numerics; showing lines %d - %d of %ld", startLine, stopLine, screen->mainWindowLines);
             if (startLine > 1)
-                wprintw(statusWindow, " <output above>");
-            wclrtoeol(statusWindow);
-            wrefresh(statusWindow);
+                wprintw(screen->statusWindow, " <output above>");
+            wclrtoeol(screen->statusWindow);
+            wrefresh(screen->statusWindow);
         }
         if (ON_READINPUT_SEARCH & flags)
-            prefresh(mainWindow, mainWindowTopLine, 0, 1, 0, LINES - 1, COLS - 1);
+            prefresh(screen->mainWindow, screen->mainWindowTopLine, 0, 1, 0, LINES - 1, COLS - 1);
         if (is_pad(win))
-            prefresh(win, mainWindowTopLine, 0, 1, 0, LINES - 1, COLS - 1);
+            prefresh(win, screen->mainWindowTopLine, 0, 1, 0, LINES - 1, COLS - 1);
         else
             wrefresh(win);
 
         key = wgetch(win);
+
+        if (ON_READINPUT_ONESHOT & flags)
+        {
+            if (recalling)
+            {
+                free(recallRequest);
+                recallRequest = NULL;
+            }
+            char keyStr[2] = {0};
+            keyStr[0] = key & A_CHARTEXT;
+            return strdup(keyStr);
+        }
+
         if (key == ('C' & 0x1f) || key == ('V' & 0x1f))
             continue;
         else if (key == KEY_RESIZE)
         {
-            mainWindowViewHeight = LINES - statusHeight;
+            screen->mainWindowViewHeight = LINES - screen->statusHeight;
             continue;
         }
         else if (key == ERR && !scrolling)
@@ -202,39 +245,39 @@ char *readInput(WINDOW *win, char *prompt, int flags)
             continue;
         }
         // Find
-        else if ((key == ('F' & 0x1f)) && (win != statusWindow))
+        else if ((key == ('F' & 0x1f)) && (win != screen->statusWindow))
         {
             if (recalling)
             {
                 recalling = false;
                 free(recallRequest);
                 recallRequest = NULL;
-                (void)recallMostRecent();
+                (void)recallMostRecent(userInput);
             }
-            wmove(statusWindow, 0, 0);
-            char * cmdold = strdup(cmd);
-            char * ans = readInput(statusWindow, "Search for: ", ON_READINPUT_ALL | ON_READINPUT_SEARCH);
-            memorize(ans);
+            wmove(screen->statusWindow, 0, 0);
+            char * cmdold = strdup(userInput->cmd);
+            char * ans = readInput(screen, userInput, screen->statusWindow, "Search for: ", ON_READINPUT_ALL | ON_READINPUT_SEARCH);
+            memorize(userInput, ans);
             free(ans);
             size_t l = strlen(cmdold);
-            memcpy(cmd, cmdold, l < ON_CMD_LENGTH - 1 ? l + 1 : ON_CMD_LENGTH);
+            memcpy(userInput->cmd, cmdold, l < ON_CMD_LENGTH - 1 ? l + 1 : ON_CMD_LENGTH);
             free(cmdold);
             statusLineMsg = true;
             continue;
         }
         // Find again
-        else if ((key == ('R' & 0x1f)) && (win != statusWindow))
+        else if ((key == ('R' & 0x1f)) && (win != screen->statusWindow))
         {
             if (recalling)
             {
                 recalling = false;
                 free(recallRequest);
                 recallRequest = NULL;
-                (void)recallMostRecent();
+                (void)recallMostRecent(userInput);
             }
-            getyx(mainWindow, cury, curx);
-            searchOutputHighlight("");
-            wmove(mainWindow, cury, curx);
+            getyx(screen->mainWindow, cury, curx);
+            searchOutputHighlight(screen, "");
+            wmove(screen->mainWindow, cury, curx);
             continue;
         }
         else if (key == KEY_PPAGE || key == KEY_NPAGE)
@@ -254,9 +297,9 @@ char *readInput(WINDOW *win, char *prompt, int flags)
                     scrolling = true;
                 }
                 previousScroll = scrollPrevious;
-                mainWindowTopLine -= (int)ceil(scrollRate);
-                if (mainWindowTopLine < 0)
-                    mainWindowTopLine = 0;
+                screen->mainWindowTopLine -= (int)ceil(scrollRate);
+                if (screen->mainWindowTopLine < 0)
+                    screen->mainWindowTopLine = 0;
             }
             else if (scrollNext && canScroll)
             {
@@ -271,27 +314,16 @@ char *readInput(WINDOW *win, char *prompt, int flags)
                     scrolling = true;
                 }
                 previousScroll = scrollNext;
-                mainWindowTopLine += (int)ceil(scrollRate);
-                if (mainWindowTopLine > mainWindowLines - mainWindowViewHeight)
+                screen->mainWindowTopLine += (int)ceil(scrollRate);
+                if (screen->mainWindowTopLine > screen->mainWindowLines - screen->mainWindowViewHeight)
                 {
-                    mainWindowTopLine = mainWindowLines - mainWindowViewHeight;
+                    screen->mainWindowTopLine = screen->mainWindowLines - screen->mainWindowViewHeight;
                 }
             }
             continue;
         }
         statusLineMsg = false;
-        if (ON_READINPUT_ONESHOT & flags)
-        {
-            if (recalling)
-            {
-                free(recallRequest);
-                recallRequest = NULL;
-            }
-            char keyStr[2] = {0};
-            keyStr[0] = key & A_CHARTEXT;
-            return strdup(keyStr);
-        }
-        else if (key == KEY_UP)
+        if (key == KEY_UP)
         {
             if (!((ON_READINPUT_HISTORY & flags) || (ON_READINPUT_ALL & flags)))
                 continue;
@@ -301,23 +333,23 @@ char *readInput(WINDOW *win, char *prompt, int flags)
                 recalling = false;
                 free(recallRequest);
                 recallRequest = NULL;
-                (void)recallMostRecent();
+                (void)recallMostRecent(userInput);
             }
 
-            recalled = recallPrevious();
+            recalled = recallPrevious(userInput);
             if (recalled)
             {
-                (void)snprintf(cmd, ON_CMD_LENGTH-1, "%s", recalled);
+                (void)snprintf(userInput->cmd, ON_CMD_LENGTH-1, "%s", recalled);
                 inputLength = strlen(recalled);
                 if (inputLength >= ON_CMD_LENGTH)
                     inputLength = ON_CMD_LENGTH - 1;
-                cmd[inputLength] = '\0';
+                userInput->cmd[inputLength] = '\0';
                 getyx(win, cury, curx);
-                mvwprintw(win, cury, 0, "%s%s", prompt, cmd);
+                mvwprintw(win, cury, 0, "%s%s", prompt, userInput->cmd);
                 wclrtoeol(win);
             }
             if (!(ON_READINPUT_SEARCH & flags))
-                resetPromptPosition(false);
+                resetPromptPosition(screen, false);
         }
         else if (key == KEY_DOWN)
         {
@@ -329,31 +361,31 @@ char *readInput(WINDOW *win, char *prompt, int flags)
                 recalling = false;
                 free(recallRequest);
                 recallRequest = NULL;
-                (void)recallMostRecent();
+                (void)recallMostRecent(userInput);
             }
 
-            recalled = recallNext();
+            recalled = recallNext(userInput);
             if (recalled)
             {
-                (void)snprintf(cmd, ON_CMD_LENGTH-1, "%s", recalled);
+                (void)snprintf(userInput->cmd, ON_CMD_LENGTH-1, "%s", recalled);
                 inputLength = strlen(recalled);
                 if (inputLength >= ON_CMD_LENGTH)
                     inputLength = ON_CMD_LENGTH - 1;
-                cmd[inputLength] = '\0';
+                userInput->cmd[inputLength] = '\0';
                 getyx(win, cury, curx);
-                mvwprintw(win, cury, 0, "%s%s", prompt, cmd);
+                mvwprintw(win, cury, 0, "%s%s", prompt, userInput->cmd);
                 wclrtoeol(win);
             }
             else
             {
-                cmd[0] = '\0';
+                userInput->cmd[0] = '\0';
                 inputLength = 0;
                 getyx(win, cury, curx);
                 wmove(win, cury, strlen(prompt));
                 wclrtoeol(win);
             }
             if (!(ON_READINPUT_SEARCH & flags))
-                resetPromptPosition(false);
+                resetPromptPosition(screen, false);
         }
         else if (key == '\b' || key == KEY_BACKSPACE || key == 127)
         {
@@ -365,7 +397,7 @@ char *readInput(WINDOW *win, char *prompt, int flags)
                 recalling = false;
                 free(recallRequest);
                 recallRequest = NULL;
-                (void)recallMostRecent();
+                (void)recallMostRecent(userInput);
             }
 
             getyx(win, cury, curx);
@@ -376,13 +408,13 @@ char *readInput(WINDOW *win, char *prompt, int flags)
                     inputLength = curx - promptLength;
                 else
                     inputLength--;
-                memmove(cmd + curx - promptLength, cmd + curx - promptLength + 1, strlen(cmd + curx - promptLength + 1));
-                cmd[inputLength] = '\0';
-                mvwprintw(win, cury, curx, "%s ", cmd + curx - promptLength);
+                memmove(userInput->cmd + curx - promptLength, userInput->cmd + curx - promptLength + 1, strlen(userInput->cmd + curx - promptLength + 1));
+                userInput->cmd[inputLength] = '\0';
+                mvwprintw(win, cury, curx, "%s ", userInput->cmd + curx - promptLength);
                 wmove(win, cury, curx);
             }
             if (!(ON_READINPUT_SEARCH & flags))
-                resetPromptPosition(false);
+                resetPromptPosition(screen, false);
         }
         else if (key == KEY_LEFT)
         {
@@ -394,7 +426,7 @@ char *readInput(WINDOW *win, char *prompt, int flags)
                 recalling = false;
                 free(recallRequest);
                 recallRequest = NULL;
-                (void)recallMostRecent();
+                (void)recallMostRecent(userInput);
             }
 
             getyx(win, cury, curx);
@@ -404,7 +436,7 @@ char *readInput(WINDOW *win, char *prompt, int flags)
                 wmove(win, cury, curx);
             }
             if (!(ON_READINPUT_SEARCH & flags))
-                resetPromptPosition(false);
+                resetPromptPosition(screen, false);
             continue;
         }
         else if (key == KEY_RIGHT)
@@ -417,7 +449,7 @@ char *readInput(WINDOW *win, char *prompt, int flags)
                 recalling = false;
                 free(recallRequest);
                 recallRequest = NULL;
-                (void)recallMostRecent();
+                (void)recallMostRecent(userInput);
             }
 
             getyx(win, cury, curx);
@@ -427,7 +459,7 @@ char *readInput(WINDOW *win, char *prompt, int flags)
                 wmove(win, cury, curx);
             }
             if (!(ON_READINPUT_SEARCH & flags))
-                resetPromptPosition(false);
+                resetPromptPosition(screen, false);
         }
         else if (key == '\t')
         {
@@ -436,33 +468,33 @@ char *readInput(WINDOW *win, char *prompt, int flags)
             if (!recalling)
             {
                 recalling = true;
-                recallRequest = strdup(cmd);
-                (void)recallMostRecent();
+                recallRequest = strdup(userInput->cmd);
+                (void)recallMostRecent(userInput);
             }
             do
             {
-                recalled = recallPrevious();
+                recalled = recallPrevious(userInput);
             }
             while (recalled && recallRequest != NULL && strncasecmp(recallRequest, recalled, strlen(recallRequest)) != 0);
 
             if (recalled)
             {
-                (void)snprintf(cmd, ON_CMD_LENGTH-1, "%s", recalled);
+                (void)snprintf(userInput->cmd, ON_CMD_LENGTH-1, "%s", recalled);
                 inputLength = strlen(recalled);
                 if (inputLength >= ON_CMD_LENGTH)
                     inputLength = ON_CMD_LENGTH - 1;
-                cmd[inputLength] = '\0';
+                userInput->cmd[inputLength] = '\0';
                 getyx(win, cury, curx);
                 mvwprintw(win, cury, 0, "%s%s", prompt, recalled);
                 wclrtoeol(win);
-                resetPromptPosition(false);
+                resetPromptPosition(screen, false);
             }
             else
             {
                 recalling = false;
                 free(recallRequest);
                 recallRequest = NULL;
-                recallMostRecent();
+                recallMostRecent(userInput);
             }
         }
         else if (inputLength == ON_CMD_LENGTH - 1 || key == '\n')
@@ -470,24 +502,24 @@ char *readInput(WINDOW *win, char *prompt, int flags)
             if (recalling)
             {
                 recalling = false;
-                (void)recallMostRecent();
+                (void)recallMostRecent(userInput);
             }
-            cmd[inputLength] = '\0';
+            userInput->cmd[inputLength] = '\0';
             getyx(win, cury, curx);
-            if (curx - promptLength < strlen(cmd))
-                wmove(win, cury, strlen(cmd) + promptLength);
+            if (curx - promptLength < strlen(userInput->cmd))
+                wmove(win, cury, strlen(userInput->cmd) + promptLength);
 
-            print(win, "\n");
+            print(screen, win, "\n");
             if (ON_READINPUT_SEARCH & flags)
             {
                 // Highlight search term if found
-                getyx(mainWindow, cury, curx);
-                searchOutputHighlight(cmd);
-                wmove(mainWindow, cury, curx);
+                getyx(screen->mainWindow, cury, curx);
+                searchOutputHighlight(screen, userInput->cmd);
+                wmove(screen->mainWindow, cury, curx);
 
             }
             else
-                resetPromptPosition(false);
+                resetPromptPosition(screen, false);
 
             break;
         }
@@ -496,17 +528,17 @@ char *readInput(WINDOW *win, char *prompt, int flags)
             if (recalling)
             {
                 recalling = false;
-                (void)recallMostRecent();
+                (void)recallMostRecent(userInput);
             }
 
             // Insert the character
             getyx(win, cury, curx);
             if (curx - promptLength < inputLength)
             {
-                char *p = cmd + inputLength + 1;
-                if (p >= cmd + ON_CMD_LENGTH)
-                    p = cmd + ON_CMD_LENGTH - 1;
-                while (p > cmd + curx - promptLength && p > cmd)
+                char *p = userInput->cmd + inputLength + 1;
+                if (p >= userInput->cmd + ON_CMD_LENGTH)
+                    p = userInput->cmd + ON_CMD_LENGTH - 1;
+                while (p > userInput->cmd + curx - promptLength && p > userInput->cmd)
                 {
                     *p = *(p-1);
                     p--;
@@ -515,13 +547,13 @@ char *readInput(WINDOW *win, char *prompt, int flags)
                 if (!(ON_READINPUT_HIDDEN & flags))
                 {
                     waddch(win, key);
-                    mvwprintw(win, cury, curx + 1, "%s", cmd + curx - promptLength + 1);
+                    mvwprintw(win, cury, curx + 1, "%s", userInput->cmd + curx - promptLength + 1);
                     wmove(win, cury, curx + 1);
                 }
             }
             else
             {
-                cmd[inputLength] = key;
+                userInput->cmd[inputLength] = key;
                 if (!(ON_READINPUT_HIDDEN & flags))
                 {
                     waddch(win, key);
@@ -529,26 +561,25 @@ char *readInput(WINDOW *win, char *prompt, int flags)
             }
             inputLength++;
             if (!(ON_READINPUT_SEARCH & flags))
-                resetPromptPosition(false);
+                resetPromptPosition(screen, false);
         }
     }    
 
     if (ON_READINPUT_NO_COPY & flags)
         return NULL;
     else
-        return strdup(cmd);
+        return strdup(userInput->cmd);
 
 }
 
-
-int restoreScreenHistory(void)
+int restoreScreenHistory(ScreenState *screen)
 {
     char sessionsFile[FILENAME_MAX] = {0};
     char *home = getenv("HOME");
     if (home != NULL && strlen(home) > 0)
         snprintf(sessionsFile, FILENAME_MAX, "%s/%s/%s", home, ON_OPTIONS_DIR, ON_SESSIONS_LOG);
     FILE *sessionsLog = NULL;
-    mainWindowLines = 1; // For the prompt
+    screen->mainWindowLines = 1; // For the prompt
     int nLines = 0;
     int status = 0;
     if (access(sessionsFile, R_OK) == 0)
@@ -560,9 +591,9 @@ int restoreScreenHistory(void)
             char *res = fgets(lineBuf, ON_BUFFERED_LINE_LENGTH, sessionsLog);
             while (res != NULL)
             {
-                if (mainWindowLines >= ON_BUFFERED_LINES)
-                    wscrl(mainWindow, 1);
-                print(mainWindow, "%s", lineBuf);
+                if (screen->mainWindowLines >= ON_BUFFERED_LINES)
+                    wscrl(screen->mainWindow, 1);
+                print(screen, screen->mainWindow, "%s", lineBuf);
                 res = fgets(lineBuf, ON_BUFFERED_LINE_LENGTH, sessionsLog);
                 nLines++;
             }
@@ -573,7 +604,7 @@ int restoreScreenHistory(void)
     return nLines;
 }
 
-int saveScreenHistory(void)
+int saveScreenHistory(ScreenState *screen)
 {
     int status = 0;
 
@@ -588,9 +619,9 @@ int saveScreenHistory(void)
         int status = 0;
         int lineLength = 0;
         char lineBuf[ON_BUFFERED_LINE_LENGTH] = {0};
-        for (int i = mainWindowLines > ON_BUFFERED_LINES ? mainWindowLines - ON_BUFFERED_LINES : 0; i < mainWindowLines; i++)
+        for (int i = screen->mainWindowLines > ON_BUFFERED_LINES ? screen->mainWindowLines - ON_BUFFERED_LINES : 0; i < screen->mainWindowLines; i++)
         {
-            mvwinnstr(mainWindow, i, 0, lineBuf, ON_BUFFERED_LINE_LENGTH);
+            mvwinnstr(screen->mainWindow, i, 0, lineBuf, ON_BUFFERED_LINE_LENGTH);
             // Do not print traling spaces
             lineLength = ON_BUFFERED_LINE_LENGTH;
             while (lineLength > 0 && lineBuf[lineLength-1] == ' ')

@@ -31,50 +31,31 @@
 
 #include <ncurses.h>
 
-extern WINDOW *mainWindow;
-extern WINDOW *statusWindow;
-extern WINDOW *streamWindow;
-
-extern long mainWindowLines;
-extern long mainWindowTopLine;
-
-extern char searchText[ON_CMD_LENGTH];
-extern long lastSearchResultLine;
-
-char continueOrQuit(int maxLineLength, bool pageBreak)
+char continueOrQuit(ScreenState *screen, UserInputState *userInput, int maxLineLength, bool pageBreak)
 {
     char template[20] = {0};
     char action = 0;
-    sprintf(template, "%%%ds", maxLineLength + (int)strlen(READING_CUE));
+    sprintf(template, "%%%ds", maxLineLength + (int)strlen(ON_READING_CUE));
     char prompt[256] = {0};
     snprintf(prompt, 256, template, "[any key but q for next page...]");
-    // wprintw(mainWindow, template, "[any key but q for next page...]");
-    // // From ChatGPT 16 Jan 2023, to hide echo when getting user input
-    // struct termios old_tio, new_tio;
-    // tcgetattr(STDIN_FILENO, &old_tio);
-    // new_tio = old_tio;
-    // new_tio.c_lflag &= (~ICANON & ~ECHO);
-    // tcsetattr(STDIN_FILENO, TCSANOW, &new_tio);
-    // action = getchar();
-    // tcsetattr(STDIN_FILENO, TCSANOW, &old_tio);
 
-    char *a = readInput(mainWindow, prompt, ON_READINPUT_ALL | ON_READINPUT_HIDDEN | ON_READINPUT_ONESHOT);
+    char *a = readInput(screen, userInput, screen->mainWindow, prompt, ON_READINPUT_ALL | ON_READINPUT_HIDDEN | ON_READINPUT_ONESHOT);
     if (a != NULL)
     {
         action = a[0];
         free(a);
     }
-    wprintw(mainWindow, "\r");
-    wprintw(mainWindow, template, "");
+    wprintw(screen->mainWindow, "\r");
+    wprintw(screen->mainWindow, template, "");
     if (pageBreak)
-        print(mainWindow, "\n");
+        print(screen, screen->mainWindow, "\n");
     else
-        wprintw(mainWindow, "\r");
+        wprintw(screen->mainWindow, "\r");
 
     return action;
 }
 
-void searchOutputHighlight(char *forThisString)
+void searchOutputHighlight(ScreenState *screen, char *forThisString)
 {
     if (forThisString == NULL)
         return;
@@ -82,12 +63,12 @@ void searchOutputHighlight(char *forThisString)
     int sLen = strlen(forThisString);
     if (sLen > 0)
     {
-        snprintf(searchText, ON_CMD_LENGTH, "%s", forThisString);
-        searchText[sLen < ON_CMD_LENGTH ? sLen : ON_CMD_LENGTH-1] = '\0';
-        lastSearchResultLine = mainWindowLines - 1;
+        snprintf(screen->searchText, ON_CMD_LENGTH, "%s", forThisString);
+        screen->searchText[sLen < ON_CMD_LENGTH ? sLen : ON_CMD_LENGTH-1] = '\0';
+        screen->lastSearchResultLine = screen->mainWindowLines - 1;
     }
-    else if (strlen(searchText) > 0)
-        forThisString = searchText;
+    else if (strlen(screen->searchText) > 0)
+        forThisString = screen->searchText;
 
     if (strlen(forThisString) == 0)
         return;
@@ -97,11 +78,11 @@ void searchOutputHighlight(char *forThisString)
     int status = 0;
     int lineLength = 0;
     size_t searchLen = strlen(forThisString);
-    int i = lastSearchResultLine - 1;
+    int i = screen->lastSearchResultLine - 1;
 
     for (; i >= 0; i--)
     {
-        mvwinnstr(mainWindow, i, 0, lineBuf, ON_BUFFERED_LINE_LENGTH);
+        mvwinnstr(screen->mainWindow, i, 0, lineBuf, ON_BUFFERED_LINE_LENGTH);
         // Do not print traling spaces
         for (lineLength = ON_BUFFERED_LINE_LENGTH; lineLength > 0 && lineBuf[lineLength-1] == ' '; lineLength--);
         lineBuf[lineLength] = '\0';
@@ -109,28 +90,28 @@ void searchOutputHighlight(char *forThisString)
         {
             if (strlen(lineBuf) > 0 && strncmp(forThisString, lineBuf + c, searchLen) == 0)
             {
-                wattron(statusWindow, A_REVERSE);
-                mvwprintw(statusWindow, 0, 0, "Options Numerics; found at line %d, column %d:", i + 1, c + 1);
-                wattroff(statusWindow, A_REVERSE);
-                wprintw(statusWindow, " %s", lineBuf + c);
-                wclrtoeol(statusWindow);
-                wattron(statusWindow, A_REVERSE);
-                wrefresh(statusWindow);
+                wattron(screen->statusWindow, A_REVERSE);
+                mvwprintw(screen->statusWindow, 0, 0, "Options Numerics; found at line %d, column %d:", i + 1, c + 1);
+                wattroff(screen->statusWindow, A_REVERSE);
+                wprintw(screen->statusWindow, " %s", lineBuf + c);
+                wclrtoeol(screen->statusWindow);
+                wattron(screen->statusWindow, A_REVERSE);
+                wrefresh(screen->statusWindow);
 
-                mainWindowTopLine = i;
-                wmove(mainWindow, i, c);
-                wattron(mainWindow, A_BOLD | A_UNDERLINE);
-                waddstr(mainWindow, forThisString);
-                wattroff(mainWindow, A_BOLD | A_UNDERLINE);
-                lastSearchResultLine = i;
+                screen->mainWindowTopLine = i;
+                wmove(screen->mainWindow, i, c);
+                wattron(screen->mainWindow, A_BOLD | A_UNDERLINE);
+                waddstr(screen->mainWindow, forThisString);
+                wattroff(screen->mainWindow, A_BOLD | A_UNDERLINE);
+                screen->lastSearchResultLine = i;
                 return;
             }
         }
     }
-    wattron(statusWindow, A_REVERSE);
-    mvwprintw(statusWindow, 0, 0, "Text not found");
-    wclrtoeol(statusWindow);
-    wrefresh(statusWindow);    
+    wattron(screen->statusWindow, A_REVERSE);
+    mvwprintw(screen->statusWindow, 0, 0, "Text not found");
+    wclrtoeol(screen->statusWindow);
+    wrefresh(screen->statusWindow);    
 
     return;
 

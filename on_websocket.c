@@ -35,10 +35,8 @@ static bool wssSupportChecked = false;
 
 extern volatile sig_atomic_t running;
 
-extern WINDOW *statusWindow;
-
 // Call at beginning of program
-int checkWebSocketSupport(void)
+int checkWebSocketSupport(ScreenState *screen)
 {
     if (!wssSupportChecked)
     {
@@ -56,7 +54,7 @@ int checkWebSocketSupport(void)
 
     if (!wssSupportEnabled)
     {
-        mvwprintw(statusWindow, 0, 0, "Your CURL library does not have WebSocket (WSS); streaming disabled.");
+        mvwprintw(screen->statusWindow, 0, 0, "Your CURL library does not have WebSocket (WSS); streaming disabled.");
         return 1;
     }
 
@@ -100,23 +98,24 @@ static size_t polygonIoWssCallback(char *data, size_t size, size_t nmemb, void *
 int polygonIoParseWssFrame(WssData *wssData)
 {
     // print(mainWindow, "%s\n", mem->response);
+    int status = 0;
     json_error_t error = {0};
     json_t *root = json_loads(wssData->frame, 0, &error);
     if (!root)
     {
-        mvwprintw(statusWindow, 0, 0, "Could not parse Polygon.IO JSON: line %d: text: %s", error.line, error.text);
+        status = 1;
         goto cleanup;
     }
     if (!json_is_array(root))
     {
-        mvwprintw(statusWindow, 0, 0, "Invalid JSON response from Polygon.IO.");
+        status = 2;
         json_decref(root);
         goto cleanup;
     }
     json_t *entry = json_array_get(root, 0);
     if (!json_is_object(entry))
     {
-        mvwprintw(statusWindow, 0, 0, "Invalid JSON response from Polygon.IO.");
+        status = 3;
         json_decref(root);
         goto cleanup;
     }
@@ -124,25 +123,24 @@ int polygonIoParseWssFrame(WssData *wssData)
     char *msg = (char *)json_string_value(json_object_get(entry, "message"));
     if (strcmp("connected", jsonstatus) == 0 && strcmp("Connected Successfully", msg) == 0)
     {
-        mvwprintw(statusWindow, 0, 0, "Connected to Polygon.IO stream.\n");
+        status = 4;
         wssData->connected = true;
     }
     else if (strcmp("auth_success", jsonstatus) == 0 && strcmp("authenticated", msg) == 0)
     {
         // Authenticated
-        wprintw(statusWindow, "Authenticated to PolygonIO stream.");
+        status = 5;
         wssData->authenticated = true;
     }
     else
     {
-        wprintw(statusWindow, "Unhandled PolygonIO stream data");
-        mvwprintw(statusWindow, 0, 0, "%s", wssData->frame);
+        status = 6;
     }
 
 cleanup:
     json_decref(root);
 
-    return 0;    
+    return status;
 }
 
 int polygonIoStreamConnect(char *socketName)
@@ -194,8 +192,8 @@ int polygonIoStreamConnect(char *socketName)
             timeout(0);
             refresh();
             key = getch();
-            if (key != 0)
-                mvwprintw(statusWindow, 0, COLS - 10, "key: %d", key);
+            // if (key != 0)
+            //     mvwprintw(statusWindow, 0, COLS - 10, "key: %d", key);
             if (transfers_running && (!running || key == KEY_BACKSPACE))
             {
                 // Close the WSS connection
@@ -217,7 +215,7 @@ int polygonIoStreamConnect(char *socketName)
         } while (transfers_running);
         curl_multi_remove_handle(multi_handle, data.curl);
 
-        wprintw(statusWindow, "PolyhonIO WSS connection complete.");
+        // wprintw(statusWindow, "PolyhonIO WSS connection complete.");
         /* Check for errors */
 
 cleanup:

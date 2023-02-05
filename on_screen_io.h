@@ -17,15 +17,19 @@
 #ifndef _ON_SCREEN_IO_H
 #define _ON_SCREEN_IO_H
 
+#include "on_state.h"
+
 #include <stdbool.h>
 
 #include <ncurses.h>
 
-void prepareForALotOfOutput(long nLines);
-int print(WINDOW *window, const char *fmt, ...);
-int mvprint(WINDOW *window, int row, int col, const char *fmt, ...);
+int initScreen(ScreenState *screen);
 
-void resetPromptPosition(bool toBottom);
+void prepareForALotOfOutput(ScreenState *screen, long nLines);
+int print(ScreenState *screen, WINDOW *window, const char *fmt, ...);
+int mvprint(ScreenState *screen, WINDOW *window, int row, int col, const char *fmt, ...);
+
+void resetPromptPosition(ScreenState *screen, bool toBottom);
 
 enum ReadInputFlags
 {
@@ -43,10 +47,12 @@ enum ReadInputFlags
     ON_READINPUT_SEARCH = 1 << 10
 };
 
-char *readInput(WINDOW *win, char *prompt, int flags);
+int initUserInput(UserInputState *userInput);
 
-int saveScreenHistory(void);
-int restoreScreenHistory(void);
+char *readInput(ScreenState *screen, UserInputState *userInput, WINDOW *win, char *prompt, int flags);
+
+int restoreScreenHistory(ScreenState *screen);
+int saveScreenHistory(ScreenState *screen);
 
 #endif // _ON_SCREEN_IO_H
 
