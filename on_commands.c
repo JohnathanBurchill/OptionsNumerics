@@ -15,6 +15,7 @@
 */
 
 #include "on_commands.h"
+#include "on_status.h"
 #include "on_examples.h"
 
 #include "on_screen_io.h"
@@ -29,7 +30,7 @@
 int initCommands(Command **commands)
 {
     if (commands == NULL)
-        return 1;
+        return ON_MISSING_ARG_POINTER;
 
     CommandExample noExample = {0};
     Command initcommands[NCOMMANDS] = {
@@ -96,11 +97,11 @@ int initCommands(Command **commands)
     };
     *commands = calloc(NCOMMANDS, sizeof(Command));
     if (*commands == NULL)
-        return 1;
+        return ON_HEAP_MEMORY_ERROR;
 
     memcpy(*commands, initcommands, NCOMMANDS * sizeof(Command));
 
-    return 0;    
+    return ON_OK;
 }
 
 void freeCommands(Command *commands)
@@ -112,7 +113,8 @@ void freeCommands(Command *commands)
 
 void memorize(UserInputState *userInput, char *this)
 {
-    if (this == NULL || strlen(this) == 0)
+
+    if (userInput == NULL || this == NULL || strlen(this) == 0)
         return;
 
     for (int i = 0; i < userInput->numberOfThingsRemembered; i++)
@@ -149,6 +151,9 @@ void memorize(UserInputState *userInput, char *this)
 
 void forgetEverything(UserInputState *userInput)
 {
+    if (userInput == NULL)
+        return;
+
     for (int i = 0; i < userInput->numberOfThingsRemembered; i++)
     {
         free(userInput->thingsRemembered[i].thing);
@@ -162,6 +167,10 @@ void forgetEverything(UserInputState *userInput)
 
 const char *recallPrevious(UserInputState *userInput)
 {
+
+    if (userInput == NULL)
+        return NULL;
+
     const char *thing = NULL;
     if (userInput->recallDirection == 1)
     {
@@ -180,6 +189,10 @@ const char *recallPrevious(UserInputState *userInput)
 
 const char *recallNext(UserInputState *userInput)
 {
+
+    if (userInput == NULL)
+        return NULL;
+
     const char *thing = NULL;
     if (userInput->recallDirection == -1)
     {
@@ -198,6 +211,9 @@ const char *recallNext(UserInputState *userInput)
 
 const char *recallMostUsed(UserInputState *userInput)
 {
+    if (userInput == NULL)
+        return NULL;
+
     int mostUsed = userInput->thingsRemembered[0].timesRemembered;
     for (int i = 1; i < userInput->numberOfThingsRemembered; i++)
     {
@@ -214,36 +230,45 @@ const char *recallMostUsed(UserInputState *userInput)
 
 const char *recallMostRecent(UserInputState *userInput)
 {
+    if (userInput == NULL)
+        return NULL;
+
     userInput->thinkingOf = userInput->numberOfThingsRemembered;
     return recallPrevious(userInput);
 }
 
 int writeDownThingsToRemember(UserInputState *userInput)
 {
+    if (userInput == NULL)
+        return 1;
+
     char *homeDir = getenv("HOME");
     if (access(homeDir, F_OK) != 0)
-        return 0;
+        return 2;
 
     char thingsToRememberFile[FILENAME_MAX];
     snprintf(thingsToRememberFile, FILENAME_MAX, "%s/%s/%s", homeDir, ON_OPTIONS_DIR, ON_THINGS_TO_REMEMBER_FILENAME);
 
     FILE *f = fopen(thingsToRememberFile, "w");
     if (f == NULL)
-        return 1;
+        return 3;
 
     for (int i = 0; i < userInput->numberOfThingsRemembered; i++)
         fprintf(f, "%lu %s\n", userInput->thingsRemembered[i].timesRemembered, userInput->thingsRemembered[i].thing);
 
     fclose(f);
 
-    return 0;
+    return ON_OK;
 }
 
 int reviseThingsToRemember(UserInputState *userInput)
 {
+    if (userInput == NULL)
+        return ON_MISSING_ARG_POINTER;
+
     char *homeDir = getenv("HOME");
     if (access(homeDir, F_OK) != 0)
-        return 0;
+        return ON_FILE_READ_ERROR;
 
     char thingsToRememberFile[FILENAME_MAX];
     snprintf(thingsToRememberFile, FILENAME_MAX, "%s/%s/%s", homeDir, ON_OPTIONS_DIR, ON_THINGS_TO_REMEMBER_FILENAME);
@@ -254,7 +279,7 @@ int reviseThingsToRemember(UserInputState *userInput)
     if (f == NULL)
     {
         bzero(userInput->thingsRemembered, sizeof(ThingToRemember) * ON_NUMBER_OF_THINGS_TO_REMEMBER);
-        return 1;
+        return ON_FILE_READ_ERROR;
     }
 
     char lineBuf[1000] = {0};
@@ -280,11 +305,14 @@ int reviseThingsToRemember(UserInputState *userInput)
 
     userInput->thinkingOf = userInput->numberOfThingsRemembered;
 
-    return 0;
+    return ON_OK;
 }
 
 void showRememberedThings(ScreenState *screen)
 {
+    if (screen == NULL)
+        return;
+        
     print(screen, screen->mainWindow, "Remembered:\n");
     for (int i = 0; i < screen->userInput->numberOfThingsRemembered; i++)
         print(screen, screen->mainWindow, " %4d %s (%ld)\n", i + 1, screen->userInput->thingsRemembered[i].thing, screen->userInput->thingsRemembered[i].timesRemembered);

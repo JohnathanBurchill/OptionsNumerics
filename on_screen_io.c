@@ -15,6 +15,7 @@
 */
 
 #include "on_screen_io.h"
+#include "on_status.h"
 #include "on_config.h"
 #include "on_commands.h"
 #include "on_utilities.h"
@@ -33,6 +34,9 @@ extern volatile sig_atomic_t running;
 
 int initScreen(ScreenState *screen)
 {
+    if (screen == NULL)
+        return ON_NO_SCREEN;
+
     int status = OK;
     initscr();
     screen->statusHeight = 1;
@@ -60,12 +64,15 @@ int initScreen(ScreenState *screen)
 
     status |= initUserInput(screen->userInput);
 
-    return status;
+    return (status << 1);
 
 }
 
 int initUserInput(UserInputState *userInput)
 {
+    if (userInput == NULL)
+        return ON_NO_USERINPUT;
+
     userInput->prompt = ON_PROMPT;
     userInput->promptLength = (int)strlen(userInput->prompt);
 
@@ -100,7 +107,10 @@ void prepareForALotOfOutput(ScreenState *screen, long nLines)
 int print(ScreenState *screen, WINDOW *window, const char *fmt, ...)
 {
     if (screen == NULL)
-        return 0;
+        return ON_NO_SCREEN;
+
+    if (window == NULL)
+        return ON_NO_WINDOW;
 
     int y0 = 0, x0 = 0;
     int y1 = 0, x1 = 0;
@@ -129,7 +139,13 @@ int print(ScreenState *screen, WINDOW *window, const char *fmt, ...)
 int mvprint(ScreenState *screen, WINDOW *window, int row, int col, const char *fmt, ...)
 {
     if (screen == NULL)
-        return 0;
+        return ON_NO_SCREEN;
+
+    if (window == NULL)
+        return ON_NO_WINDOW;
+
+    if (fmt == NULL)
+        return ON_MISSING_ARG_POINTER;
 
     int y1 = 0, x1 = 0;
 
@@ -171,6 +187,10 @@ void resetPromptPosition(ScreenState *screen, bool toBottom)
 
 char *readInput(ScreenState *screen, WINDOW *win, char *prompt, int flags)
 {
+
+    if (screen == NULL || win == NULL || prompt == NULL)
+        return NULL;
+
     int cury = 0;
     int curx = 0;
 
@@ -592,6 +612,10 @@ char *readInput(ScreenState *screen, WINDOW *win, char *prompt, int flags)
 
 int restoreScreenHistory(ScreenState *screen)
 {
+
+    if (screen == NULL)
+        return ON_OK;
+
     char sessionsFile[FILENAME_MAX] = {0};
     char *home = getenv("HOME");
     if (home != NULL && strlen(home) > 0)
@@ -624,7 +648,10 @@ int restoreScreenHistory(ScreenState *screen)
 
 int saveScreenHistory(ScreenState *screen)
 {
-    int status = 0;
+    if (screen == NULL)
+        return ON_NO_SCREEN;
+
+    int status = ON_OK;
 
     char sessionsFile[FILENAME_MAX] = {0};
     char *home = getenv("HOME");
@@ -650,7 +677,7 @@ int saveScreenHistory(ScreenState *screen)
         fclose(sessionsLog);
     }
     else
-        status = 2;
+        status = ON_FILE_WRITE_ERROR;
 
     return status;
 }

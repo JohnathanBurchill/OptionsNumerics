@@ -15,6 +15,7 @@
 */
 
 #include "on_dataproviders.h"
+#include "on_status.h"
 #include "on_api.h"
 #include "on_statistics.h"
 #include "on_parse.h"
@@ -92,23 +93,27 @@ int updateQuestradeAccessToken(ScreenState *screen)
         /* Check for errors */
         if (res != CURLE_OK)
         {
-            mvwprintw(screen->statusWindow, 0, 0, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
-            status = 1;
+            if (screen != NULL && screen->statusWindow != NULL)
+                mvwprintw(screen->statusWindow, 0, 0, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
+            status = ON_REST_LIBCURL_ERROR;
         }
         else
         {
             // Check response
             curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpCode);
-            mvwprintw(screen->statusWindow, 0, 0, "HTTP response code: %ld\n", httpCode);
+            if (screen != NULL && screen->statusWindow != NULL)
+                mvwprintw(screen->statusWindow, 0, 0, "HTTP response code: %ld\n", httpCode);
             switch (httpCode)
             {
                 case 401:
-                    print(screen, screen->mainWindow, "Access token is invalid.\n");
-                    status = 2;
+                    if (screen != NULL)
+                        print(screen, screen->mainWindow, "Access token is invalid.\n");
+                    status = ON_QUESTRADE_INVALID_TOKEN;
                     break;
                 case 404:
-                    print(screen, screen->mainWindow, "Account not recognized.\n");
-                    status = 2;
+                    if (screen != NULL)
+                        print(screen, screen->mainWindow, "Account not recognized.\n");
+                    status = ON_QUESTRADE_INVALID_ACCOUNT;
                     break;
 
             }
@@ -124,21 +129,23 @@ int updateQuestradeAccessToken(ScreenState *screen)
     return status;
 }
 
-double questradeStockQuote(ScreenState *screen, char *symbol)
+double questradeStockQuote(ScreenState *screen, char *ticker)
 {
     return 0.0;
 }
 
 // From libcurl c example
-
 size_t restCallback(char *data, size_t size, size_t nmemb, void *userdata)
 {
+    if (data == NULL || userdata == NULL)
+        return 0;
+
     size_t realsize = size *nmemb;
     CurlData *mem = (CurlData *)userdata;
 
     char *ptr = realloc(mem->response, mem->size + realsize + 1);
     if (ptr == NULL)
-        return 0; /* out of memory! */
+        return 0;
 
     mem->response = ptr;
     memcpy(&(mem->response[mem->size]), data, realsize);
@@ -166,7 +173,7 @@ int fredSOFR(ScreenState *screen, double *sofr)
     }
 
     long httpCode = 0;
-    int status = ON_FRED_NO_DATA;
+    int status = ON_OK;
 
     curl = curl_easy_init();
 
@@ -193,8 +200,9 @@ int fredSOFR(ScreenState *screen, double *sofr)
         /* Check for errors */
         if (res != CURLE_OK)
         {
-            if (screen != NULL)
+            if (screen != NULL && screen->statusWindow != NULL)
                 mvwprintw(screen->statusWindow, 0, 0, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
+            status = ON_REST_LIBCURL_ERROR;
             goto cleanup;
         }
 
@@ -206,12 +214,14 @@ int fredSOFR(ScreenState *screen, double *sofr)
             {
                 if (screen != NULL)
                     print(screen, screen->mainWindow, "Could not parse FRED JSON response: line %d: text: %s\n", error.line, error.text);
+                status = ON_FRED_INVALID_JSON;
                 goto cleanup;
             }
 
             json_t *observations = json_object_get(root, "observations");
             if (!json_is_array(observations))
             {
+                status = ON_FRED_INVALID_JSON;
                 goto cleanup;
             }
             for (int i = 0; i < json_array_size(observations); i++)
@@ -219,17 +229,20 @@ int fredSOFR(ScreenState *screen, double *sofr)
                 entry = json_array_get(observations, i);
                 if (!json_is_object(entry))
                 {
+                    status = ON_FRED_INVALID_JSON;
                     goto cleanup;
                 }
                 date = json_string_value(json_object_get(entry, "date"));
                 rateStr = json_string_value(json_object_get(entry, "value"));
                 if (rateStr != NULL)
                 {
-                    status = ON_FRED_OK;
                     rate = atof(rateStr);
                 }
                 else
+                {
+                    status = ON_FRED_INVALID_JSON;
                     rate = nan("");
+                }
 
                 if (sofr != NULL)
                     *sofr = rate;                
@@ -261,6 +274,9 @@ json_t *polygonIoRESTRequest(ScreenState *screen, const char *requestUrl)
     if (token == NULL)
     {
         char *tmptoken = getpass("  Polygon.IO (PIO) personal API token: ");
+        if (tmptoken == NULL || strlen(tmptoken) == 0)
+            return NULL;
+
         saveApiToken("PIO.apitoken", tmptoken);
         token = strdup(tmptoken);
         bzero(tmptoken, strlen(tmptoken));
@@ -295,7 +311,8 @@ json_t *polygonIoRESTRequest(ScreenState *screen, const char *requestUrl)
         /* Check for errors */
         if (res != CURLE_OK)
         {
-            mvwprintw(screen->statusWindow, 0, 0, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
+            if (screen != NULL && screen->statusWindow != NULL)
+                mvwprintw(screen->statusWindow, 0, 0, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
             goto cleanup;
         }
 
@@ -307,28 +324,35 @@ json_t *polygonIoRESTRequest(ScreenState *screen, const char *requestUrl)
             root = json_loads(data.response, 0, &error);
             if (!root)
             {
-                print(screen, screen->mainWindow, "Could not parse Polygon.IO JSON response: line %d: text: %s\n", error.line, error.text);
+                if (screen != NULL)
+                    print(screen, screen->mainWindow, "Could not parse Polygon.IO JSON response: line %d: text: %s\n", error.line, error.text);
                 goto cleanup;
             }
             else if (!json_is_object(root))
             {
-                print(screen, screen->mainWindow, "Invalid JSON response from Polygon.IO.\n");
+                if (screen != NULL)
+                    print(screen, screen->mainWindow, "Invalid JSON response from Polygon.IO.\n");
                 json_decref(root);
+                root = NULL;
                 goto cleanup;
             }
             char *jsonstatus = (char *)json_string_value(json_object_get(root, "status"));
             if (strcmp("ERROR", jsonstatus) == 0)
             {
                 char *msg = (char *)json_string_value(json_object_get(root, "error"));
-                print(screen, screen->mainWindow, "Polygon.IO: %s\n", msg);
+                if (screen != NULL)
+                    print(screen, screen->mainWindow, "Polygon.IO: %s\n", msg);
                 json_decref(root);
+                root = NULL;
                 goto cleanup;
             }
             else if (strcmp("NOT_AUTHORIZED", jsonstatus) == 0)
             {
                 char *msg = (char *)json_string_value(json_object_get(root, "message"));
-                print(screen, screen->mainWindow, "Polygon.IO: %s\n", msg);
+                if (screen != NULL)
+                    print(screen, screen->mainWindow, "Polygon.IO: %s\n", msg);
                 json_decref(root);
+                root = NULL;
                 goto cleanup;
             }
         }
@@ -350,6 +374,11 @@ int polygonIoOptionsSearch(ScreenState *screen, char *ticker, char type, double 
     bool continuedSearch = false;
     int status = 0;
 
+    if (screen == NULL)
+        return ON_NO_SCREEN;
+    if (ticker == NULL)
+        return ON_PIO_NO_TICKER_ARG;
+
     if (nextPagePtr != NULL && *nextPagePtr != NULL)
     {
         sprintf(url, "%s", *nextPagePtr);
@@ -365,11 +394,11 @@ int polygonIoOptionsSearch(ScreenState *screen, char *ticker, char type, double 
 
     json_t *root = polygonIoRESTRequest(screen, url);
     if (root == NULL)
-        return 1;
+        return ON_PIO_REST_NO_JSON_ROOT;
 
     json_t *results = json_object_get(root, "results");
     if (results == NULL)
-        return 1;
+        return ON_PIO_REST_NO_JSON_RESULTS;
 
     time_t t = 0;
 
@@ -383,7 +412,7 @@ int polygonIoOptionsSearch(ScreenState *screen, char *ticker, char type, double 
     {
         print(screen, screen->mainWindow, "No data from Polygon.IO.\n");
         json_decref(root);
-        return 2;
+        return ON_PIO_REST_JSON_NO_ARRAY_ENTRY;
     }
     if (!continuedSearch)
         print(screen, screen->mainWindow, "%15s   %8s   %s\n", "Expiry date", "Strike", "Ticker");
@@ -394,7 +423,7 @@ int polygonIoOptionsSearch(ScreenState *screen, char *ticker, char type, double 
         {
             print(screen, screen->mainWindow, "Invalid JSON entry %d\n", i);
             json_decref(root);
-            return 2;
+            return ON_PIO_REST_INVALID_JSON;
         }
         optionTicker = (char *)json_string_value(json_object_get(entry, "ticker"));
         strike = json_number_value(json_object_get(entry, "strike_price"));
@@ -418,11 +447,18 @@ int polygonIoOptionsSearch(ScreenState *screen, char *ticker, char type, double 
     }
     json_decref(root);
 
-    return 0;
+    return ON_OK;
 }
 
 int polygonIoOptionsChain(ScreenState *screen, char *ticker, char type, double minstrike, double maxstrike, Date date1, Date date2, double minpremium, char **nextPagePtr)
 {
+
+    if (screen == NULL)
+        return ON_NO_SCREEN;
+
+    if (ticker == NULL)
+        return ON_PIO_NO_TICKER_ARG;
+
     char url[URL_BUFFER_SIZE] = {0};
 
     bool continuedSearch = false;
@@ -448,11 +484,11 @@ int polygonIoOptionsChain(ScreenState *screen, char *ticker, char type, double m
 
     json_t *root = polygonIoRESTRequest(screen, url);
     if (root == NULL)
-        return 1;
+        return ON_PIO_REST_NO_JSON_ROOT;
 
     json_t *results = json_object_get(root, "results");
     if (results == NULL)
-        return 1;
+        return ON_PIO_REST_NO_JSON_RESULTS;
 
     time_t t = 0;
 
@@ -461,7 +497,7 @@ int polygonIoOptionsChain(ScreenState *screen, char *ticker, char type, double m
     {
         print(screen, screen->mainWindow, "No data from Polygon.IO.\n");
         json_decref(root);
-        return 2;
+        return ON_PIO_REST_JSON_NO_ARRAY_ENTRY;
     }
     if (!continuedSearch)
         print(screen, screen->mainWindow, "%10s %8s %s %s %s %s\n", "Strike", "Expiry", "Bid", "Ask", "Last", "Ticker");
@@ -476,7 +512,7 @@ int polygonIoOptionsChain(ScreenState *screen, char *ticker, char type, double m
         {
             print(screen, screen->mainWindow, "Invalid JSON entry %d\n", i);
             json_decref(root);
-            return 2;
+            return ON_PIO_REST_INVALID_JSON;
         }
         details = json_object_get(entry, "details");
         optionTicker = (char *)json_string_value(json_object_get(details, "ticker"));
@@ -510,11 +546,19 @@ int polygonIoOptionsChain(ScreenState *screen, char *ticker, char type, double m
 
     json_decref(root);
 
-    return 0;
+    return ON_OK;
 }
 
 int polygonIoLatestPrice(ScreenState *screen, char *ticker, TickerData *tickerData, OptionsData *optionsData, bool verbose)
 {
+    // Maybe later this will return data to the caller, but 
+    // for now only prints to screen, so require a screen
+    if (screen == NULL)
+        return ON_NO_SCREEN;
+
+    if (ticker == NULL)
+        return ON_PIO_NO_TICKER_ARG;
+
     char url[URL_BUFFER_SIZE] = {0};
 
     int market = STOCKS;
@@ -546,9 +590,9 @@ int polygonIoLatestPrice(ScreenState *screen, char *ticker, TickerData *tickerDa
 
     json_t *root = polygonIoRESTRequest(screen, url);
     if (root == NULL)
-        return 1;
+        return ON_PIO_REST_NO_JSON_ROOT;
 
-    int status = 0;
+    int status = ON_OK;
 
     switch(market)
     {
@@ -567,11 +611,13 @@ int polygonIoLatestPrice(ScreenState *screen, char *ticker, TickerData *tickerDa
 
 int printLatestPriceStocks(ScreenState *screen, json_t *root)
 {
+    if (screen == NULL)
+        return ON_NO_SCREEN;
 
     if (!json_is_object(root))
         return ON_PIO_INVALID_RESPONSE;
 
-    int status = ON_PIO_OK;
+    int status = ON_OK;
 
     json_t *ticker = json_object_get(root, "ticker");    
     if (!json_is_object(ticker))
@@ -604,7 +650,7 @@ int printLatestPriceStocks(ScreenState *screen, json_t *root)
         free(t);
     }
     else
-        status |= ON_PIO_NO_STOCK_MINUTE_DATA;
+        status = ON_PIO_NO_STOCK_MINUTE_DATA;
 
     return status;
 
@@ -612,10 +658,11 @@ int printLatestPriceStocks(ScreenState *screen, json_t *root)
 
 int printLatestPriceOptions(ScreenState *screen, json_t *root)
 {
+    if (screen == NULL)
+        return ON_NO_SCREEN;
+
     if (!json_is_object(root))
         return ON_PIO_INVALID_RESPONSE;
-
-    int status = ON_PIO_OK;
 
     json_t *results = json_object_get(root, "results");    
     if (!json_is_object(results))
@@ -698,25 +745,30 @@ int printLatestPriceOptions(ScreenState *screen, json_t *root)
 
     free(t);
 
-    return status;
+    return ON_OK;
 
 }
 
 int polygonIoPreviousClose(ScreenState *screen, char *ticker)
 {
+    if (screen == NULL)
+        return ON_NO_SCREEN;
+
+    if (ticker == NULL)
+        return ON_PIO_NO_TICKER_ARG;
+    
     char url[URL_BUFFER_SIZE] = {0};
     sprintf(url, "https://api.polygon.io/v2/aggs/ticker/%s/prev?adjusted=true", ticker);
 
     json_t *root = polygonIoRESTRequest(screen, url);
 
-    if (root == NULL)
-        return 1;
-
     json_t *results = json_object_get(root, "results");
-    if (results == NULL)
-        return 1;
     int nResults = json_integer_value(json_object_get(root, "resultsCount"));
-
+    if (results == NULL || !json_is_array(results) || nResults == 0)
+    {
+        json_decref(root);
+        return ON_PIO_REST_NO_JSON_RESULTS;
+    }
 
     time_t t = 0;
     struct tm *timedata = NULL;
@@ -732,12 +784,71 @@ int polygonIoPreviousClose(ScreenState *screen, char *ticker)
     int day = 0;
 
     json_t *entry;
-    if (!json_is_array(results) || nResults == 0)
+    for (int i = 0; i < json_array_size(results); i++)
     {
-        print(screen, screen->mainWindow, "No data from Polygon.IO.\n");
-        json_decref(root);
-        return 2;
+        entry = json_array_get(results, i);
+        if (!json_is_object(entry))
+        {
+            print(screen, screen->mainWindow, "Invalid JSON entry %d\n", i);
+            json_decref(root);
+            return ON_PIO_REST_JSON_NO_ARRAY_ENTRY;
+        }
+        t = (time_t) json_integer_value(json_object_get(entry, "t")) / 1000;
+        volume = json_number_value(json_object_get(entry, "v"));
+        vwap = json_number_value(json_object_get(entry, "vw"));
+        open = json_number_value(json_object_get(entry, "o"));
+        high = json_number_value(json_object_get(entry, "h"));
+        low = json_number_value(json_object_get(entry, "l"));
+        close = json_number_value(json_object_get(entry, "c"));
+        nTransactions = json_integer_value(json_object_get(entry, "n"));
+        timedata = localtime(&t);
+
+        print(screen, screen->mainWindow, "%4d-%02d-%02d vwap: %.2lf, open: %.2lf, high: %.2lf, low: %.2lf, close: %.2lf, vol: %.0lf, trades: %d, shares/trade: %.1lf\n", timedata->tm_year+1900, timedata->tm_mon + 1, timedata->tm_mday, vwap, open, high, low, close, volume, nTransactions, volume / (double)nTransactions);
+        
     }
+
+    json_decref(root);
+
+    return ON_OK;
+}
+
+int polygonIoPriceHistory(ScreenState *screen, char *ticker, Date startDate, Date stopDate, PriceData *priceData)
+{
+    if (screen == NULL)
+        return ON_NO_SCREEN;
+
+    if (ticker == NULL)
+        return ON_PIO_NO_TICKER_ARG;
+    
+    char url[URL_BUFFER_SIZE] = {0};
+    sprintf(url, "https://api.polygon.io/v2/aggs/ticker/%s/range/1/day/%4d-%02d-%02d/%4d-%02d-%02d?adjusted=true&sort=asc", ticker, startDate.year, startDate.month, startDate.day, stopDate.year, stopDate.month, stopDate.day);
+
+    json_t *root = polygonIoRESTRequest(screen, url);
+    if (root == NULL)
+        return ON_PIO_REST_NO_JSON_ROOT;
+
+    json_t *results = json_object_get(root, "results");
+    int nResults = json_integer_value(json_object_get(root, "resultsCount"));
+    if (results == NULL || !json_is_array(results) || nResults == 0)
+    {
+        json_decref(root);
+        return ON_PIO_REST_NO_JSON_RESULTS;
+    }
+        
+    time_t t = 0;
+    struct tm *timedata = NULL;
+    double volume = 0;
+    double vwap = 0;
+    double open = 0;
+    double high = 0;
+    double low = 0;
+    double close = 0;
+    int nTransactions = 0;
+    int year = 0;
+    int month = 0;
+    int day = 0;
+
+    json_t *entry;
     for (int i = 0; i < json_array_size(results); i++)
     {
         entry = json_array_get(results, i);
@@ -756,111 +867,53 @@ int polygonIoPreviousClose(ScreenState *screen, char *ticker)
         close = json_number_value(json_object_get(entry, "c"));
         nTransactions = json_integer_value(json_object_get(entry, "n"));
         timedata = localtime(&t);
-
         print(screen, screen->mainWindow, "%4d-%02d-%02d vwap: %.2lf, open: %.2lf, high: %.2lf, low: %.2lf, close: %.2lf, vol: %.0lf, trades: %d, shares/trade: %.1lf\n", timedata->tm_year+1900, timedata->tm_mon + 1, timedata->tm_mday, vwap, open, high, low, close, volume, nTransactions, volume / (double)nTransactions);
         
     }
 
     json_decref(root);
 
-    return 0;
+    return ON_OK;
 }
 
-int polygonIoPriceHistory(ScreenState *screen, char *symbol, Date startDate, Date stopDate, PriceData *priceData)
+int polygonIoVolatility(ScreenState *screen, char *ticker, Date startDate, Date stopDate, double *volatility)
 {
+    if (screen == NULL && volatility == NULL)
+        return ON_MISSING_ARG_POINTER;
+
+    if (ticker == NULL)
+        return ON_PIO_NO_TICKER_ARG;
+    
     char url[URL_BUFFER_SIZE] = {0};
-    sprintf(url, "https://api.polygon.io/v2/aggs/ticker/%s/range/1/day/%4d-%02d-%02d/%4d-%02d-%02d?adjusted=true&sort=asc", symbol, startDate.year, startDate.month, startDate.day, stopDate.year, stopDate.month, stopDate.day);
+    sprintf(url, "https://api.polygon.io/v2/aggs/ticker/%s/range/1/day/%4d-%02d-%02d/%4d-%02d-%02d?adjusted=true&sort=asc", ticker, startDate.year, startDate.month, startDate.day, stopDate.year, stopDate.month, stopDate.day);
 
     json_t *root = polygonIoRESTRequest(screen, url);
     if (root == NULL)
-        return 1;
+        return ON_PIO_REST_NO_JSON_ROOT;
 
     json_t *results = json_object_get(root, "results");
-    if (results == NULL)
-        return 1;
-
     int nResults = json_integer_value(json_object_get(root, "resultsCount"));
-    time_t t = 0;
-    struct tm *timedata = NULL;
-    double volume = 0;
-    double vwap = 0;
-    double open = 0;
-    double high = 0;
-    double low = 0;
-    double close = 0;
-    int nTransactions = 0;
-    int year = 0;
-    int month = 0;
-    int day = 0;
-
-    json_t *entry;
-    if (!json_is_array(results) || nResults == 0)
+    if (results == NULL || !json_is_array(results) || nResults == 0)
     {
-        print(screen, screen->mainWindow, "No data from Polygon.IO.\n");
         json_decref(root);
-        return 2;
-    }
-    for (int i = 0; i < json_array_size(results); i++)
-    {
-        entry = json_array_get(results, i);
-        if (!json_is_object(entry))
-        {
-            print(screen, screen->mainWindow, "Invalid JSON entry %d\n", i);
-            json_decref(root);
-            return 2;
-        }
-        t = (time_t) json_integer_value(json_object_get(entry, "t")) / 1000;
-        volume = json_number_value(json_object_get(entry, "v"));
-        vwap = json_number_value(json_object_get(entry, "vw"));
-        open = json_number_value(json_object_get(entry, "o"));
-        high = json_number_value(json_object_get(entry, "h"));
-        low = json_number_value(json_object_get(entry, "l"));
-        close = json_number_value(json_object_get(entry, "c"));
-        nTransactions = json_integer_value(json_object_get(entry, "n"));
-        timedata = localtime(&t);
-        print(screen, screen->mainWindow, "%4d-%02d-%02d vwap: %.2lf, open: %.2lf, high: %.2lf, low: %.2lf, close: %.2lf, vol: %.0lf, trades: %d, shares/trade: %.1lf\n", timedata->tm_year+1900, timedata->tm_mon + 1, timedata->tm_mday, vwap, open, high, low, close, volume, nTransactions, volume / (double)nTransactions);
-        
+        return ON_PIO_REST_NO_JSON_RESULTS;
     }
 
-    json_decref(root);
-
-    return 0;
-}
-
-int polygonIoVolatility(ScreenState *screen, char *symbol, Date startDate, Date stopDate, double *volatility)
-{
-    char url[URL_BUFFER_SIZE] = {0};
-    sprintf(url, "https://api.polygon.io/v2/aggs/ticker/%s/range/1/day/%4d-%02d-%02d/%4d-%02d-%02d?adjusted=true&sort=asc", symbol, startDate.year, startDate.month, startDate.day, stopDate.year, stopDate.month, stopDate.day);
-
-    json_t *root = polygonIoRESTRequest(screen, url);
-    if (root == NULL)
-        return 1;
-
-    json_t *results = json_object_get(root, "results");
-    if (results == NULL)
-        return 1;
-
-    int nResults = json_integer_value(json_object_get(root, "resultsCount"));
     double close = 0;
 
     double *prices = NULL;
     int nPrices = 0;
 
     json_t *entry;
-    if (!json_is_array(results) || nResults == 0)
-    {
-        print(screen, screen->mainWindow, "No data from Polygon.IO.\n");
-        json_decref(root);
-        return 2;
-    }
     for (int i = 0; i < json_array_size(results); i++)
     {
         entry = json_array_get(results, i);
         if (!json_is_object(entry))
         {
-            print(screen, screen->mainWindow, "Invalid JSON entry %d\n", i);
+            if (screen != NULL)
+                print(screen, screen->mainWindow, "Invalid JSON entry %d\n", i);
             json_decref(root);
-            return 2;
+            return ON_PIO_REST_INVALID_JSON;
         }
         close = json_number_value(json_object_get(entry, "c"));
         
@@ -872,9 +925,10 @@ int polygonIoVolatility(ScreenState *screen, char *symbol, Date startDate, Date 
         prices = malloc(nPrices * sizeof *prices);
         if (prices == NULL)
         {
-            print(screen, screen->mainWindow, "Memory error\n");
+            if (screen != NULL)
+                print(screen, screen->mainWindow, "Memory error\n");
             json_decref(root);
-            return 1;
+            return ON_HEAP_MEMORY_ERROR;
         }
         nPrices = 0;
         for (int i = 0; i < json_array_size(results); i++)
@@ -891,13 +945,13 @@ int polygonIoVolatility(ScreenState *screen, char *symbol, Date startDate, Date 
 
         if (volatility != NULL)
             *volatility = vol * 100;
-        else
+        if (screen != NULL)
             print(screen, screen->mainWindow, "  Annualized Volatility: %.1lf%%\n", vol*100);
 
         free(prices);
     }
     json_decref(root);
 
-    return 0;
+    return ON_OK;
 }
 

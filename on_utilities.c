@@ -15,6 +15,7 @@
 */
 
 #include "on_utilities.h"
+#include "on_status.h"
 #include "on_info.h"
 #include "on_config.h"
 #include "on_screen_io.h"
@@ -33,6 +34,9 @@
 
 char continueOrQuit(ScreenState *screen, int maxLineLength, bool pageBreak)
 {
+    if (screen == NULL)
+        return ON_NO_SCREEN;
+
     char template[20] = {0};
     char action = 0;
     sprintf(template, "%%%ds", maxLineLength + (int)strlen(ON_READING_CUE));
@@ -57,7 +61,7 @@ char continueOrQuit(ScreenState *screen, int maxLineLength, bool pageBreak)
 
 void searchOutputHighlight(ScreenState *screen, char *forThisString)
 {
-    if (forThisString == NULL)
+    if (screen == NULL || forThisString == NULL)
         return;
 
     int sLen = strlen(forThisString);

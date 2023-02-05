@@ -15,6 +15,7 @@
 */
 
 #include "on_functions.h"
+#include "on_status.h"
 #include "on_commands.h"
 #include "on_info.h"
 #include "on_examples.h"
@@ -42,6 +43,9 @@
 
 FunctionValue echoFunction(ScreenState *screen, FunctionValue arg)
 {
+    if (screen == NULL)
+        return (FunctionValue)ON_NO_SCREEN;
+
     if (arg.charStarValue != NULL)
         print(screen, screen->mainWindow, "%s\n", arg.charStarValue);
 
@@ -50,6 +54,9 @@ FunctionValue echoFunction(ScreenState *screen, FunctionValue arg)
 
 FunctionValue testCommandsFunction(ScreenState *screen, FunctionValue arg)
 {
+    if (screen == NULL)
+        return (FunctionValue)ON_NO_SCREEN;
+
     (void)arg;
 
     char command[256] = {0};
@@ -69,6 +76,9 @@ FunctionValue testCommandsFunction(ScreenState *screen, FunctionValue arg)
 
 FunctionValue timeFunction(ScreenState *screen, FunctionValue arg)
 {
+    if (screen == NULL)
+        return (FunctionValue)ON_NO_SCREEN;
+
     char *input = arg.charStarValue;
 
     struct timeval t = {0};
@@ -96,6 +106,9 @@ FunctionValue timeFunction(ScreenState *screen, FunctionValue arg)
 
 FunctionValue showCommandsFunction(ScreenState *screen, FunctionValue arg)
 {
+    if (screen == NULL)
+        return (FunctionValue)ON_NO_SCREEN;
+
     (void)arg;
     showRememberedThings(screen);
     return FV_OK;
@@ -103,6 +116,9 @@ FunctionValue showCommandsFunction(ScreenState *screen, FunctionValue arg)
 
 FunctionValue blackScholesOptionPriceFunction(ScreenState *screen, FunctionValue arg)
 {
+    if (screen == NULL)
+        return (FunctionValue)ON_NO_SCREEN;
+
     double S, K, r, sigma, optionValue, bookValue, timeValue;
     int year = 0, month = 0, day = 0;
     int daysToExpire = 0;
@@ -165,6 +181,9 @@ FunctionValue blackScholesOptionPriceFunction(ScreenState *screen, FunctionValue
 
 FunctionValue binomialOptionPriceFunction(ScreenState *screen, FunctionValue arg)
 {
+    if (screen == NULL)
+        return (FunctionValue)ON_NO_SCREEN;
+
     double S, K, r, q, sigma, optionValue, bookValue, timeValue;
     int year = 0, month = 0, day = 0;
     int daysToExpire = 0;
@@ -227,6 +246,9 @@ FunctionValue binomialOptionPriceFunction(ScreenState *screen, FunctionValue arg
 
 FunctionValue optionsTimeDecayFunction(ScreenState *screen, FunctionValue arg)
 {
+    if (screen == NULL)
+        return (FunctionValue)ON_NO_SCREEN;
+
     char *params = arg.charStarValue;
     double S, K, r, q, sigma, optionValue, bookValue, timeValue;
     int year = 0, month = 0, day = 0;
@@ -300,6 +322,9 @@ FunctionValue optionsTimeDecayFunction(ScreenState *screen, FunctionValue arg)
 
 FunctionValue geeksFunction(ScreenState *screen, FunctionValue arg)
 {
+    if (screen == NULL)
+        return (FunctionValue)ON_NO_SCREEN;
+
     double S, K, r, q, sigma, optionValue, bookValue, timeValue;
     int year = 0, month = 0, day = 0;
     int daysToExpire = 0;
@@ -384,6 +409,9 @@ FunctionValue geeksFunction(ScreenState *screen, FunctionValue arg)
 
 FunctionValue impliedVolatilityFunction(ScreenState *screen, FunctionValue arg)
 {
+    if (screen == NULL)
+        return (FunctionValue)ON_NO_SCREEN;
+
     double S, K, r, q, bid, ask, bidImpliedVolatility = 0, askImpliedVolatility = 0;
     int year = 0, month = 0, day = 0;
     int daysToExpire = 0;
@@ -433,6 +461,9 @@ FunctionValue impliedVolatilityFunction(ScreenState *screen, FunctionValue arg)
 
 FunctionValue impliedPriceFunction(ScreenState *screen, FunctionValue arg)
 {
+    if (screen == NULL)
+        return (FunctionValue)ON_NO_SCREEN;
+
     int status = 0;
 
     double K, v, r, q, optionPrice, impliedPriceOfUnderlying;
@@ -497,6 +528,9 @@ cleanup:
 
 FunctionValue feesFunction(ScreenState *screen, FunctionValue arg)
 {
+    if (screen == NULL)
+        return (FunctionValue)ON_NO_SCREEN;
+
     char unitType = 0;
     int nunits = 0;
     double flatfee = 0.0;
@@ -542,6 +576,9 @@ FunctionValue feesFunction(ScreenState *screen, FunctionValue arg)
 
 FunctionValue timeValueOfMoneyFunction(ScreenState *screen, FunctionValue arg)
 {
+    if (screen == NULL)
+        return (FunctionValue)ON_NO_SCREEN;
+
     (void)arg;
 
     char *input = NULL;
@@ -615,6 +652,8 @@ FunctionValue timeValueOfMoneyFunction(ScreenState *screen, FunctionValue arg)
 
 FunctionValue pioOptionsSearchFunction(ScreenState *screen, FunctionValue arg)
 {
+    if (screen == NULL)
+        return (FunctionValue)ON_NO_SCREEN;
 
     char *input = NULL;
     char *ticker = NULL;
@@ -692,6 +731,9 @@ cleanup:
 
 FunctionValue pioOptionsChainFunction(ScreenState *screen, FunctionValue arg)
 {
+    if (screen == NULL)
+        return (FunctionValue)ON_NO_SCREEN;
+
     char type = 0;
     double minstrike = 0;
     double maxstrike = 0;
@@ -767,6 +809,9 @@ cleanup:
 
 FunctionValue pioPriceHistoryFunction(ScreenState *screen, FunctionValue arg)
 {
+    if (screen == NULL)
+        return (FunctionValue)ON_NO_SCREEN;
+
     (void)arg;
     char *input = NULL;
     char *ticker = NULL;
@@ -814,6 +859,9 @@ FunctionValue pioPriceHistoryFunction(ScreenState *screen, FunctionValue arg)
 
 FunctionValue pioVolatilityFunction(ScreenState *screen, FunctionValue arg)
 {
+    if (screen == NULL)
+        return (FunctionValue)ON_NO_SCREEN;
+
     char *input = NULL;
     char *ticker = NULL;
 
@@ -874,6 +922,9 @@ FunctionValue pioVolatilityFunction(ScreenState *screen, FunctionValue arg)
 
 FunctionValue pioLatestPriceFunction(ScreenState *screen, FunctionValue arg)
 {
+    if (screen == NULL)
+        return (FunctionValue)ON_NO_SCREEN;
+
     char *input = NULL;
     char *ticker = NULL;
 
@@ -905,6 +956,8 @@ FunctionValue pioLatestPriceFunction(ScreenState *screen, FunctionValue arg)
 
 FunctionValue pioPreviousCloseFunction(ScreenState *screen, FunctionValue arg)
 {
+    if (screen == NULL)
+        return (FunctionValue)ON_NO_SCREEN;
 
     char *input = NULL;
     char *ticker = NULL;
@@ -956,6 +1009,9 @@ FunctionValue pioPreviousCloseFunction(ScreenState *screen, FunctionValue arg)
 // FRED
 FunctionValue fredSOFRFunction(ScreenState *screen, FunctionValue arg)
 {
+    if (screen == NULL)
+        return (FunctionValue)ON_NO_SCREEN;
+
     (void)arg;
 
     int res = fredSOFR(screen, NULL);
@@ -966,6 +1022,9 @@ FunctionValue fredSOFRFunction(ScreenState *screen, FunctionValue arg)
 // Questrade
 FunctionValue questradeConnectionFunction(ScreenState *screen, FunctionValue arg)
 {
+    if (screen == NULL)
+        return (FunctionValue)ON_NO_SCREEN;
+
     (void)arg;
 
     int res = updateQuestradeAccessToken(screen);
@@ -977,6 +1036,9 @@ FunctionValue questradeConnectionFunction(ScreenState *screen, FunctionValue arg
 // What if?
 FunctionValue optionsIncomeReinvestedFunction(ScreenState *screen, FunctionValue arg)
 {
+    if (screen == NULL)
+        return (FunctionValue)ON_NO_SCREEN;
+
     char *params = arg.charStarValue;
     int startingShares = 0;
     double weeklyProfitPerShare = 0;
@@ -1029,6 +1091,9 @@ FunctionValue optionsIncomeReinvestedFunction(ScreenState *screen, FunctionValue
 
 FunctionValue optionsExerciseChanceFunction(ScreenState *screen, FunctionValue arg)
 {
+    if (screen == NULL)
+        return (FunctionValue)ON_NO_SCREEN;
+
     char *input = NULL;
     char *ticker = NULL;
 

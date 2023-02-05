@@ -15,6 +15,7 @@
 */
 
 #include "on_optionsmodels.h"
+#include "on_status.h"
 #include "on_data.h"
 #include "on_optionstiming.h"
 #include "on_screen_io.h"
@@ -110,7 +111,7 @@ double binomial_option_value(Option opt, OptionType type)
 int binomial_option_implied_volatility(Option opt, OptionType type, double actualPrice, double *impliedVolatility)
 {
     if (impliedVolatility == NULL)
-        return 1;
+        return ON_MISSING_RETURN_POINTER;
 
     Option searchOpt = opt;
     searchOpt.v = 1.0;
@@ -142,20 +143,20 @@ int binomial_option_implied_volatility(Option opt, OptionType type, double actua
     }
     if (iterations == IV_MAX_ITERATIONS)
     {
-        return 2;
+        return ON_OPTIONS_MODELS_MAX_ITERATIONS_REACHED;
     }
     // No solution - market bid was less than book value?
     if (fabs(theoreticalPrice - lastTheoreticalPrice) < IV_MIN_PRICE_CHANGE)
         *impliedVolatility = nan("");
     else
         *impliedVolatility = searchOpt.v;
-    return 0;
+    return ON_OK;
 }
 
 int binomial_option_implied_price_of_underlying(Option opt, OptionType type, double optionPrice, double *impliedPriceOfUnderlying)
 {
     if (impliedPriceOfUnderlying == NULL)
-        return 1;
+        return ON_MISSING_RETURN_POINTER;
 
     Option searchOpt = opt;
     searchOpt.S = 0.0;
@@ -187,19 +188,19 @@ int binomial_option_implied_price_of_underlying(Option opt, OptionType type, dou
     }
     if (iterations == IV_MAX_ITERATIONS)
     {
-        return 2;
+        return ON_OPTIONS_MODELS_MAX_ITERATIONS_REACHED;
     }
     // No solution - market bid was less than book value?
     if (fabs(theoreticalPrice - lastTheoreticalPrice) < IV_MIN_PRICE_CHANGE)
         *impliedPriceOfUnderlying= nan("");
     else
         *impliedPriceOfUnderlying = searchOpt.S;
-    return 0;
+    return ON_OK;
 }
 
 double option_geeks(Option opt, OptionType type, char *geek, double (*optionValueFunction)(Option, OptionType))
 {
-    if (geek == NULL)
+    if (geek == NULL || optionValueFunction == NULL)
         return nan("");
 
     Option derivOpt = opt;

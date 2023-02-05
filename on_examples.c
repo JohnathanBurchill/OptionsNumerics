@@ -15,6 +15,7 @@
 */
 
 #include "on_examples.h"
+#include "on_status.h"
 #include "on_config.h"
 #include "on_parse.h"
 #include "on_screen_io.h"
@@ -26,6 +27,12 @@
 
 FunctionValue examplesFunction(ScreenState *screen, FunctionValue arg)
 {
+    if (screen == NULL)
+        return (FunctionValue)ON_NO_SCREEN;
+
+    if (screen->userInput == NULL)
+        return (FunctionValue)ON_NO_USERINPUT;
+
     char *topic = arg.charStarValue;
     if (topic == NULL || topic[0] == 0)
         return FV_NOTOK;

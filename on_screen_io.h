@@ -34,7 +34,6 @@ void resetPromptPosition(ScreenState *screen, bool toBottom);
 
 enum ReadInputFlags
 {
-    ON_READINPUT_NONE = 0,
     ON_READINPUT_SCROLL = 1 << 0,
     ON_READINPUT_EDIT = 1 << 1,
     ON_READINPUT_HISTORY = 1 << 2,

@@ -30,29 +30,6 @@
 
 #include <jansson.h>
 
-enum fredStatus
-{
-    ON_FRED_OK = 0,
-    ON_FRED_NO_DATA = 1
-};
-
-enum polygonIoStatus
-{
-    ON_PIO_OK = 0,
-    ON_PIO_INVALID_RESPONSE = -1,
-    ON_PIO_NO_STOCK_TICKER = 1 << 0,
-    ON_PIO_NO_STOCK_TICKER_NAME = 1 << 1,
-    ON_PIO_NO_STOCK_QUOTE = 1 << 2,
-    ON_PIO_NO_STOCK_DAY_INFO = 1 << 3,
-    ON_PIO_NO_STOCK_MINUTE_DATA = 1 << 4,   
-    ON_PIO_NO_STOCK_PREVIOUS_DAY_INFO = 1 << 5,
-    ON_PIO_NO_OPTIONS_RESULTS = 1 << 6,
-    ON_PIO_NO_OPTIONS_QUOTE = 1 << 7,
-    ON_PIO_NO_OPTIONS_DAY_INFO = 1 << 8,
-    ON_PIO_NO_OPTIONS_GREEKS = 1 << 9,
-    ON_PIO_NO_OPTIONS_DETAILS = 1 << 10
-};
-
 typedef struct {
     size_t nPrices;
     time_t *times;

@@ -141,6 +141,9 @@ cleanup:
 
 double timeValue(ScreenState *screen, double amount, double annualRatePercent, Date date1, Date date2)
 {
+    if (screen == NULL)
+        return nan("");
+        
     // TODO fix historical dates
     if (screen->mainWindow != NULL)
         wprintw(screen->mainWindow, "%d-%02d-%02d, %d-%02d-%02d\n", date1.year, date1.month, date1.day, date2.year, date2.month, date2.day);

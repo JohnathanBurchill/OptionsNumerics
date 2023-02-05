@@ -15,6 +15,7 @@
 */
 
 #include "on_state.h"
+#include "on_status.h"
 #include "on_config.h"
 #include "on_commands.h"
 #include "on_calculate.h"
@@ -132,5 +133,5 @@ int main(void)
 
     printf("Happy trading!\n");
 
-    return 0;
+    return ON_OK;
 }

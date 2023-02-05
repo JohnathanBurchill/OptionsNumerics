@@ -15,6 +15,7 @@
 */
 
 #include "on_optionstiming.h"
+#include "on_status.h"
 
 #include <stdio.h>
 #include <time.h>
@@ -64,6 +65,10 @@ int tradingDaysToExpiry(Date date)
 // Returns the date difference in days
 int makeSureItsAFriday(Date *date)
 {
+
+    if (date == NULL)
+        return -1;
+
     struct tm d = {0};
     d.tm_year = date->year - 1900;
     d.tm_mon = date->month - 1;
@@ -85,8 +90,8 @@ int makeSureItsAFriday(Date *date)
 
 int advanceN3rdFridaysOfTheMonth(Date *date, int n)
 {
-    if (n == 0)
-        return 1;
+    if (date == NULL)
+        return ON_MISSING_ARG_POINTER;
 
     struct tm day = {0};
     day.tm_year = date->year - 1900;
@@ -128,5 +133,5 @@ int advanceN3rdFridaysOfTheMonth(Date *date, int n)
     date->month = firstOfTheMonth.tm_mon + 1;
     date->day = firstOfTheMonth.tm_mday;
 
-    return 0;
+    return ON_OK;
 }

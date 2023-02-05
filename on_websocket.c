@@ -15,6 +15,7 @@
 */
 
 #include "on_websocket.h"
+#include "on_status.h"
 
 #include "on_api.h"
 #include "on_remote.h"
@@ -55,16 +56,20 @@ int checkWebSocketSupport(ScreenState *screen)
     if (!wssSupportEnabled)
     {
         mvwprintw(screen->statusWindow, 0, 0, "Your CURL library does not have WebSocket (WSS); streaming disabled.");
-        return 1;
+        return ON_WSS_PROTOCOL_NOT_SUPPORTED;
     }
 
-    return 0;
+    return ON_OK;
 }
 
 static size_t polygonIoWssCallback(char *data, size_t size, size_t nmemb, void *userdata)
 {
+
+    if (data == NULL || userdata == NULL)
+        return ON_OK;
+
     if (!running)
-        return 0;
+        return ON_OK;
 
     char *jsonString = NULL;
 
@@ -73,7 +78,7 @@ static size_t polygonIoWssCallback(char *data, size_t size, size_t nmemb, void *
 
     char *ptr = realloc(wssData->frame, wssData->size + realsize + 1);
     if (ptr == NULL)
-        return 0; /* out of memory! */
+        return ON_OK;
 
     wssData->frame = ptr;
     memcpy(&(wssData->frame[wssData->size]), data, realsize);
@@ -97,25 +102,24 @@ static size_t polygonIoWssCallback(char *data, size_t size, size_t nmemb, void *
 
 int polygonIoParseWssFrame(WssData *wssData)
 {
-    // print(mainWindow, "%s\n", mem->response);
     int status = 0;
     json_error_t error = {0};
     json_t *root = json_loads(wssData->frame, 0, &error);
     if (!root)
     {
-        status = 1;
+        status = ON_PIO_WSS_NO_JSON_ROOT;
         goto cleanup;
     }
     if (!json_is_array(root))
     {
-        status = 2;
+        status = ON_PIO_WSS_JSON_ROOT_NOT_ARRAY;
         json_decref(root);
         goto cleanup;
     }
     json_t *entry = json_array_get(root, 0);
     if (!json_is_object(entry))
     {
-        status = 3;
+        status = ON_PIO_WSS_JSON_NO_ARRAY_ENTRY;
         json_decref(root);
         goto cleanup;
     }
@@ -123,18 +127,18 @@ int polygonIoParseWssFrame(WssData *wssData)
     char *msg = (char *)json_string_value(json_object_get(entry, "message"));
     if (strcmp("connected", jsonstatus) == 0 && strcmp("Connected Successfully", msg) == 0)
     {
-        status = 4;
+        status = ON_OK;
         wssData->connected = true;
     }
     else if (strcmp("auth_success", jsonstatus) == 0 && strcmp("authenticated", msg) == 0)
     {
         // Authenticated
-        status = 5;
+        status = ON_OK;
         wssData->authenticated = true;
     }
     else
     {
-        status = 6;
+        status = ON_PIO_WSS_UNHANDLED_TEXT_FRAME;
     }
 
 cleanup:
@@ -225,13 +229,13 @@ cleanup:
         data.size = 0;
     }
 
-    return 0;
+    return ON_OK;
 }
 
 int polygonIoStreamAuthenticate(WssData *wssData)
 {
     if (!wssSupportEnabled || wssData == NULL || !wssData->connected)
-        return 1;
+        return ON_PIO_WSS_NO_DATA;
 
     char authenticate[512] = {0};
     char *token = loadApiToken("PIO.apitoken");
@@ -250,14 +254,18 @@ int polygonIoStreamAuthenticate(WssData *wssData)
     CURLcode res = curl_ws_send(wssData, authenticate, responseLength, &sent, 0, CURLWS_TEXT);
     bzero(authenticate, sizeof(authenticate));
 
-    return 1;
+    return ON_OK;
 
 }
 
 int polygonIoStreamSubscribe(WssData *wssData, char *channel)
 {
-    if (!wssSupportEnabled || wssData == NULL || !wssData->authenticated)
-        return 1;
+    if (!wssData->authenticated)
+        return ON_PIO_WSS_NOT_AUTHENTICATED;
+    if (wssData == NULL)
+        return ON_PIO_WSS_NO_DATA;
+    if (channel == NULL)
+        return ON_PIO_WSS_NO_CHANNEL;
 
     // Subscribe to a channel
     char subscribe[1024] = {0};
@@ -266,13 +274,17 @@ int polygonIoStreamSubscribe(WssData *wssData, char *channel)
     size_t sent = 0;
     CURLcode res = curl_ws_send(wssData->curl, subscribe, responseLength, &sent, 0, CURLWS_TEXT);
 
-    return 0;
+    return ON_OK;
 }
 
 int polygonIoStreamUnsubscribe(WssData *wssData, char *channel)
 {
-    if (!wssSupportEnabled || wssData == NULL || !wssData->authenticated)
-        return 1;
+    if (!wssData->authenticated)
+        return ON_PIO_WSS_NOT_AUTHENTICATED;
+    if (wssData == NULL)
+        return ON_PIO_WSS_NO_DATA;
+    if (channel == NULL)
+        return ON_PIO_WSS_NO_CHANNEL;
 
     // Subscribe to a channel
     char unsubscribe[1024] = {0};
@@ -281,5 +293,8 @@ int polygonIoStreamUnsubscribe(WssData *wssData, char *channel)
     size_t sent = 0;
     CURLcode res = curl_ws_send(wssData->curl, unsubscribe, responseLength, &sent, 0, CURLWS_TEXT);
 
-    return 0;
+    int status = ON_OK;
+    if (res != CURLE_OK)
+        status = ON_PIO_WSS_LIBCURL_ERROR;
+    return status;
 }

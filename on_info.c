@@ -15,6 +15,7 @@
 */
 
 #include "on_info.h"
+#include "on_status.h"
 #include "on_config.h"
 #include "on_commands.h"
 #include "on_remote.h"
@@ -32,6 +33,9 @@
 
 FunctionValue aboutFunction(ScreenState *screen, FunctionValue notUsed)
 {
+    if (screen == NULL)
+        return (FunctionValue)ON_NO_SCREEN;
+
     (void)notUsed;
 
     print(screen, screen->mainWindow, "%s\n", ON_READING_CUE);
@@ -54,12 +58,15 @@ FunctionValue aboutFunction(ScreenState *screen, FunctionValue notUsed)
 
 static size_t curlCallback(char *data, size_t size, size_t nmemb, void *userdata)
 {
+    if (data == NULL || userdata == NULL)
+        return ON_OK;
+
     size_t realsize = size * nmemb;
     struct curlData *mem = (struct curlData *)userdata;
 
     char *ptr = realloc(mem->response, mem->size + realsize + 1);
     if (ptr == NULL)
-        return 0; /* out of memory! */
+        return ON_OK; /* out of memory! */
 
     mem->response = ptr;
     memcpy(&(mem->response[mem->size]), data, realsize);
@@ -71,6 +78,9 @@ static size_t curlCallback(char *data, size_t size, size_t nmemb, void *userdata
 
 FunctionValue licenseFunction(ScreenState *screen, FunctionValue notUsed)
 {
+    if (screen == NULL)
+        return (FunctionValue)ON_NO_SCREEN;
+
     (void)notUsed;
     
     CURL *curl = curl_easy_init();
@@ -146,7 +156,7 @@ FunctionValue licenseFunction(ScreenState *screen, FunctionValue notUsed)
 FunctionValue helpFunction(ScreenState *screen, FunctionValue topicArg)
 {
     if (screen == NULL)
-        return FV_NOTOK;
+        return (FunctionValue)ON_NO_SCREEN;
 
     UserInputState *userInput = screen->userInput;
     if (userInput->commands == NULL)
@@ -288,6 +298,9 @@ FunctionValue helpFunction(ScreenState *screen, FunctionValue topicArg)
 
 void api_names(ScreenState *screen)
 {
+    if (screen == NULL)
+        return;
+
     print(screen, screen->mainWindow, "Supported API names (case sensitive) for data providers:\n");
     print(screen, screen->mainWindow, "  QUESTRADE (https://questrade.com)\n");
     print(screen, screen->mainWindow, "  FRED (https://fred.stlouisfed.org)\n");

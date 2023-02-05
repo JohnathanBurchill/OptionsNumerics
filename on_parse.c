@@ -15,6 +15,7 @@
 */
 
 #include "on_parse.h"
+#include "on_status.h"
 #include "on_optionstiming.h"
 
 #include <stdlib.h>
@@ -27,6 +28,9 @@
 
 int dateRange(char *input, Date *date1, Date *date2)
 {
+
+    if (input == NULL || date1 == NULL || date2 == NULL)
+        return ON_MISSING_ARG_POINTER;
 
     // Adapted from regex.h example by ChatGPT 17 Jan 2023
     char d1[100] = {0};
@@ -65,8 +69,11 @@ cleanup:
 
 int interpretDate(char *dateString, Date *date)
 {
-    if (dateString == NULL || strlen(dateString) == 0 || date == NULL)
-        return 1;
+    if (dateString == NULL || date == NULL)
+        return ON_MISSING_ARG_POINTER;
+
+    if (strlen(dateString) == 0)
+        return ON_PARSE_INVALID_DATE_STRING;
 
     int status = 0;
 
@@ -149,6 +156,9 @@ int interpretDate(char *dateString, Date *date)
 // Checks if string starts with key and is longer than key
 bool expectedKey(char *string, char *key)
 {
+    if (string == NULL || key == NULL)
+        return ON_MISSING_ARG_POINTER;
+
     bool ok = true;
 
     ok &= strncmp(key, string, strlen(key)) == 0;
@@ -159,6 +169,10 @@ bool expectedKey(char *string, char *key)
 
 bool expectedKeys(char **tokens, char **keys)
 {
+
+    if (tokens == NULL || keys == NULL)
+        return false;
+
     int t = 0;
     bool expected = true;
     while (keys[t] != NULL && tokens[t] != NULL)
@@ -173,6 +187,7 @@ bool expectedKeys(char **tokens, char **keys)
 // Caller must free memory at returned pointer
 char **splitString(char *string, char delimiter, int *nWords)
 {
+
     if (string == NULL)
         return (char **)NULL;
 
