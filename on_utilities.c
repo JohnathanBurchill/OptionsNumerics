@@ -147,3 +147,15 @@ char *nanoSecondsAsStringMustFree(double nanoseconds)
 
     return strdup(d);
 }
+
+char *dateAs_dd_mon_yyyy_mustFreePointer(Date date)
+{
+    char *months[] = {"Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"};
+
+    char d[12] = {0};
+
+    snprintf(d, 12, "%d %s %4d", date.day, months[date.month-1], date.year);
+
+    return strdup(d);
+
+}

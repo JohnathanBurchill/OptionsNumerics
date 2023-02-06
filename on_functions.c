@@ -621,7 +621,19 @@ FunctionValue timeValueOfMoneyFunction(ScreenState *screen, FunctionValue arg)
     rate = atof(tokens[3]+strlen(keys[3]));
 
     double newAmount = timeValue(screen, amount, rate, date1, date2);
-    print(screen, screen->mainWindow, "Assuming you can get %.2lf%% on your money, $%.2lf on %d-%02d-%02d is worth $%.2lf on %d-%02d-%02d\n", rate, amount, date1.year, date1.month, date1.day, newAmount, date2.year, date2.month, date2.day);
+
+    char *ds1 = dateAs_dd_mon_yyyy_mustFreePointer(date1);
+    char *ds2 = dateAs_dd_mon_yyyy_mustFreePointer(date2);
+    
+
+    if (strcmp(tokens[1], "today")==0 && ds2 != NULL)
+        print(screen, screen->mainWindow, "Assuming you can get %.2lf%% on your money, $%.2lf today is worth $%.2lf on %s\n", rate, amount, newAmount, ds2);
+    else if (strcmp(tokens[2], "today")==0 && ds1 != NULL)
+        print(screen, screen->mainWindow, "Assuming you can get %.2lf%% on your money, $%.2lf on %s is worth $%.2lf today\n", rate, amount, ds1, newAmount);
+    else if (ds1 != NULL && ds2 != NULL)
+        print(screen, screen->mainWindow, "Assuming you can get %.2lf%% on your money, $%.2lf on %s is worth $%.2lf on %s\n", rate, amount, ds1, newAmount, ds2);
+    else 
+        print(screen, screen->mainWindow, "Assuming you can get %.2lf%% on your money, $%.2lf on %d-%02d-%02d is worth $%.2lf on %d-%02d-%02d\n", rate, amount, date1.year, date1.month, date1.day, newAmount, date2.year, date2.month, date2.day);
 
 cleanup:
     if (status == 2)
@@ -629,6 +641,8 @@ cleanup:
 
     freeTokens(tokens, nTokens);
     free(parameters);
+    free(ds1);
+    free(ds2);
 
     return FV_OK;
 

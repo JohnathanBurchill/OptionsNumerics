@@ -18,6 +18,7 @@
 #define _ON_UTILITIES_H
 
 #include "on_state.h"
+#include "on_optionstiming.h"
 
 #include <stdbool.h>
 
@@ -26,5 +27,7 @@ char continueOrQuit(ScreenState *screen, int maxLineLength, bool pageBreak);
 void searchOutputHighlight(ScreenState *screen, char *forThisString);
 
 char *nanoSecondsAsStringMustFree(double nanoseconds);
+
+char *dateAs_dd_mon_yyyy_mustFreePointer(Date date);
 
 #endif // _ON_UTILITIES_H
