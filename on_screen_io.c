@@ -256,21 +256,7 @@ char *readInput(ScreenState *screen, WINDOW *win, char *prompt, int flags)
 
         key = wgetch(win);
 
-        if (ON_READINPUT_ONESHOT & flags)
-        {
-            if (recalling)
-            {
-                free(recallRequest);
-                recallRequest = NULL;
-            }
-            char keyStr[2] = {0};
-            keyStr[0] = key & A_CHARTEXT;
-            return strdup(keyStr);
-        }
-
-        if (key == ('C' & 0x1f) || key == ('V' & 0x1f))
-            continue;
-        else if (key == KEY_RESIZE)
+        if (key == KEY_RESIZE)
         {
             screen->mainWindowViewHeight = LINES - screen->statusHeight;
             continue;
@@ -282,6 +268,19 @@ char *readInput(ScreenState *screen, WINDOW *win, char *prompt, int flags)
             usleep(250);
             continue;
         }
+        else if (ON_READINPUT_ONESHOT & flags)
+        {
+            if (recalling)
+            {
+                free(recallRequest);
+                recallRequest = NULL;
+            }
+            char keyStr[2] = {0};
+            keyStr[0] = key & A_CHARTEXT;
+            return strdup(keyStr);
+        }
+        if (key == ('C' & 0x1f) || key == ('V' & 0x1f))
+            continue;
         // Find
         else if ((key == ('F' & 0x1f)) && (win != screen->statusWindow))
         {
