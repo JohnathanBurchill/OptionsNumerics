@@ -145,8 +145,6 @@ double timeValue(ScreenState *screen, double amount, double annualRatePercent, D
         return nan("");
         
     // TODO fix historical dates
-    if (screen->mainWindow != NULL)
-        wprintw(screen->mainWindow, "%d-%02d-%02d, %d-%02d-%02d\n", date1.year, date1.month, date1.day, date2.year, date2.month, date2.day);
     struct tm d1 = {0};
     d1.tm_year = date1.year - 1900;
     d1.tm_mon = date1.month - 1;
@@ -162,17 +160,16 @@ double timeValue(ScreenState *screen, double amount, double annualRatePercent, D
     time_t ta = -200L * 365L * 86400L;
     struct tm *d = gmtime(&ta);
     time_t tb = timegm(d);
-    print(screen, screen->mainWindow, "tb: %ld\n", tb);
-    print(screen, screen->mainWindow, "From gmtime: %d-%02d-%02d\n", d->tm_year+1900, d->tm_mon+1, d->tm_mday);
-    print(screen, screen->mainWindow, "%ld %ld\n", timegm(&d1), timelocal(&d1));
-    print(screen, screen->mainWindow, "t1: %ld, t2: %ld\n", t1, t2);
+    // print(screen, screen->mainWindow, "tb: %ld\n", tb);
+    // print(screen, screen->mainWindow, "From gmtime: %d-%02d-%02d\n", d->tm_year+1900, d->tm_mon+1, d->tm_mday);
+    // print(screen, screen->mainWindow, "%ld %ld\n", timegm(&d1), timelocal(&d1));
+    // print(screen, screen->mainWindow, "t1: %ld, t2: %ld\n", t1, t2);
     double seconds = (double)t2 - (double)t1;
     double days = seconds / 86400.0; // Ignore leap seconds
     double years = days / 365.25; // Close enough
     double power = pow(1 + annualRatePercent / 100.0, years);
     double value = amount * power;
 
-    print(screen, screen->mainWindow, "power: %lf\n", power);
     return value;
 
 }

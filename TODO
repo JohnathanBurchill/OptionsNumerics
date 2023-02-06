@@ -2,6 +2,8 @@ Stream data from Polygon.IO using websocket API. Started...
 
 Fix dates.
 
+Add more command examples.
+
 More calculators:
     Maybe a "plan" function, which assists in setting up different options trades
     It could complete with tab key, like :) plan\t -> basic / advanced, bull / bear, credit / debit, etc.

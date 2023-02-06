@@ -579,75 +579,59 @@ FunctionValue timeValueOfMoneyFunction(ScreenState *screen, FunctionValue arg)
     if (screen == NULL)
         return (FunctionValue)ON_NO_SCREEN;
 
-    (void)arg;
-
     char *input = NULL;
     int status = 0;
+    char **tokens = NULL;
+    int nTokens = 0;
 
-    input = readInput(screen, screen->mainWindow, "  amount: ", ON_READINPUT_ALL);
-    if (!input)
-        return FV_NOTOK;
-    if (input[0] == 0)
-    {
-        free(input);
-        return FV_NOTOK;
-    }
-    double amount = atof(input);
-    memorize(screen->userInput, input);
-    free(input);
+    double amount = 0;
+    double rate = 0;
+    Date date1 = {0};
+    Date date2 = {0};
 
-    input = readInput(screen, screen->mainWindow, "  amount's date: ", ON_READINPUT_ALL);
-    if (!input)
-        return FV_NOTOK;
-    if (input[0] == 0)
-    {
-        free(input);
-        return FV_NOTOK;
-    }
-    Date d1 = {0};
-    status = interpretDate(input, &d1);
-    if (status != 0)
-    {
-        free(input);
-        return FV_NOTOK;
-    }
-    memorize(screen->userInput, input);
-    free(input);
+    char *params = arg.charStarValue;
 
-    input = readInput(screen, screen->mainWindow, "  requested date: ", ON_READINPUT_ALL);
-    if (!input)
+    char *parameters = NULL;
+    if (params != NULL)
+        parameters = strdup(params);
+    else
+        parameters = readInput(screen, screen->mainWindow, "  parameters: ", ON_READINPUT_ALL);
+    if (!parameters)
         return FV_NOTOK;
-    if (input[0] == 0)
+    if (parameters[0] == 0)
     {
-        free(input);
-        return FV_NOTOK;
+        status = 2;
+        goto cleanup;
     }
-    Date d2 = {0};
-    status = interpretDate(input, &d2);
-    if (status != 0)
-    {
-        free(input);
-        return FV_NOTOK;
-    }
-    memorize(screen->userInput, input);
-    free(input);
 
-    input = readInput(screen, screen->mainWindow, "  annual rate (%%): ", ON_READINPUT_ALL);
-    if (!input)
-        return FV_NOTOK;
-    if (input[0] == 0)
-    {
-        free(input);
-        return FV_NOTOK;
-    }
-    double rate = atof(input);
-    memorize(screen->userInput, input);
-    free(input);
+    if (params == NULL && parameters[0] != 0)
+        memorize(screen->userInput, parameters);
 
-    double newAmount = timeValue(screen, amount, rate, d1, d2);
-    print(screen, screen->mainWindow, "%.2lf\n", newAmount);
+    char *keys[] = {"$:", "", "", "r:", 0};
+    tokens = splitStringByKeys(parameters, keys, ',', &nTokens);
+    if (tokens == NULL)
+    {
+        status = 2;
+        goto cleanup;
+    }
+
+    amount = atof(tokens[0]+strlen(keys[0]));
+    interpretDate(tokens[1], &date1);
+    interpretDate(tokens[2], &date2);
+    rate = atof(tokens[3]+strlen(keys[3]));
+
+    double newAmount = timeValue(screen, amount, rate, date1, date2);
+    print(screen, screen->mainWindow, "Assuming you can get %.2lf%% on your money, $%.2lf on %d-%02d-%02d is worth $%.2lf on %d-%02d-%02d\n", rate, amount, date1.year, date1.month, date1.day, newAmount, date2.year, date2.month, date2.day);
+
+cleanup:
+    if (status == 2)
+        print(screen, screen->mainWindow, "parameters: $:<amount>,<reference-date>,<requested-date>,r:<annual-interest-rate-percent>\n");
+
+    freeTokens(tokens, nTokens);
+    free(parameters);
 
     return FV_OK;
+
 }
 
 FunctionValue pioOptionsSearchFunction(ScreenState *screen, FunctionValue arg)
@@ -812,58 +796,15 @@ FunctionValue pioPriceHistoryFunction(ScreenState *screen, FunctionValue arg)
     if (screen == NULL)
         return (FunctionValue)ON_NO_SCREEN;
 
-    (void)arg;
     char *input = NULL;
     char *ticker = NULL;
-
-    resetPromptPosition(screen, false);
-    input = readInput(screen, screen->mainWindow, "  ticker symbol: ", ON_READINPUT_ALL);
-
-    ticker = strdup(input);
-    if (input[0] == 0)
-    {
-        free(input);
-        return FV_NOTOK;
-    }
-    memorize(screen->userInput, input);
-    free(input);
-
-    resetPromptPosition(screen, false);
-    input = readInput(screen, screen->mainWindow, "  date range: ", ON_READINPUT_ALL);
-    if (!input)
-        return FV_NOTOK;
-    if (input[0] == 0)
-    {
-        free(input);
-        return FV_NOTOK;
-    }
-    memorize(screen->userInput, input);
+    int status = 0;
+    char **tokens = NULL;
+    int nTokens = 0;
     Date date1 = {0};
     Date date2 = {0};
-    int status = dateRange(input, &date1, &date2);
-    free(input);
-    if (status != 0)
-    {
-        resetPromptPosition(screen, false);
-        return (FunctionValue)2;
-    }
 
-    // Call PIO
-    PriceData data = {0};
-    polygonIoPriceHistory(screen, ticker, date1, date2, &data);
-
-    free(ticker);
-
-    return FV_OK;
-}
-
-FunctionValue pioVolatilityFunction(ScreenState *screen, FunctionValue arg)
-{
-    if (screen == NULL)
-        return (FunctionValue)ON_NO_SCREEN;
-
-    char *input = NULL;
-    char *ticker = NULL;
+    resetPromptPosition(screen, false);
 
     char *params = arg.charStarValue;
 
@@ -876,48 +817,96 @@ FunctionValue pioVolatilityFunction(ScreenState *screen, FunctionValue arg)
         return FV_NOTOK;
     if (parameters[0] == 0)
     {
-        print(screen, screen->mainWindow, "parameters: <ticker>,<startDate>,<endDate>\n");
-        free(parameters);
-        return FV_NOTOK;
+        status = 2;
+        goto cleanup;
     }
 
     if (params == NULL && parameters[0] != 0)
         memorize(screen->userInput, parameters);
 
-    // From strsep man page
-    char *token = NULL;
-    char *original = parameters;
-    token = strsep(&parameters, ",");
-    if (token == NULL)
+    char *keys[] = {"", "", "", 0};
+    tokens = splitStringByKeys(parameters, keys, ',', &nTokens);
+    if (tokens == NULL)
     {
-        print(screen, screen->mainWindow, "parameters: <ticker>,<startDate>,<endDate>\n");
-        free(original);
-        return FV_NOTOK;
+        status = 2;
+        goto cleanup;
     }
-    ticker = strdup(token);
+
+    ticker = strdup(tokens[0]);
+    interpretDate(tokens[1], &date1);
+    interpretDate(tokens[2], &date2);
+
+    // Call PIO
+    PriceData data = {0};
+    polygonIoPriceHistory(screen, ticker, date1, date2, &data);
+
+cleanup:
+    if (status == 2)
+        print(screen, screen->mainWindow, "parameters: <ticker>,<startDate>,<endDate>\n");
+
+    freeTokens(tokens, nTokens);
+    free(parameters);
+    free(ticker);
+
+    return FV_OK;
+}
+
+FunctionValue pioVolatilityFunction(ScreenState *screen, FunctionValue arg)
+{
+    if (screen == NULL)
+        return (FunctionValue)ON_NO_SCREEN;
+
+    char *input = NULL;
+    char *ticker = NULL;
+    int status = 0;
+    char **tokens = NULL;
+    int nTokens = 0;
     Date date1 = {0};
     Date date2 = {0};
-    if (parameters == NULL)
-    {
-        print(screen, screen->mainWindow, "parameters: <ticker>,<startDate>,<endDate>\n");
-        free(original);
+
+    char *params = arg.charStarValue;
+
+    char *parameters = NULL;
+    if (params != NULL)
+        parameters = strdup(params);
+    else
+        parameters = readInput(screen, screen->mainWindow, "  parameters: ", ON_READINPUT_ALL);
+    if (!parameters)
         return FV_NOTOK;
-    }    
-    int status = dateRange(parameters, &date1, &date2);
-    free(original);
-    if (status != 0)
+    if (parameters[0] == 0)
     {
-        print(screen, screen->mainWindow, "parameters: <ticker>,<startDate>,<endDate>\n");
-        free(ticker);
-        return (FunctionValue)status;
+        status = 2;
+        goto cleanup;
     }
+
+    if (params == NULL && parameters[0] != 0)
+        memorize(screen->userInput, parameters);
+
+    char *keys[] = {"", "", "", 0};
+    tokens = splitStringByKeys(parameters, keys, ',', &nTokens);
+    if (tokens == NULL)
+    {
+        status = 2;
+        goto cleanup;
+    }
+
+    ticker = strdup(tokens[0]);
+    interpretDate(tokens[1], &date1);
+    interpretDate(tokens[2], &date2);
 
     // Call PIO
     polygonIoVolatility(screen, ticker, date1, date2, NULL);
 
+cleanup:
+    if (status == 2)
+        print(screen, screen->mainWindow, "parameters: <ticker>,<startDate>,<endDate>\n");
+
+    freeTokens(tokens, nTokens);
+    free(parameters);
     free(ticker);
 
     return FV_OK;
+
 }
 
 FunctionValue pioLatestPriceFunction(ScreenState *screen, FunctionValue arg)
