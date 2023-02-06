@@ -240,18 +240,18 @@ const char *recallMostRecent(UserInputState *userInput)
 int writeDownThingsToRemember(UserInputState *userInput)
 {
     if (userInput == NULL)
-        return 1;
+        return ON_MISSING_ARG_POINTER;
 
     char *homeDir = getenv("HOME");
     if (access(homeDir, F_OK) != 0)
-        return 2;
+        return ON_FILE_WRITE_ERROR;
 
     char thingsToRememberFile[FILENAME_MAX];
     snprintf(thingsToRememberFile, FILENAME_MAX, "%s/%s/%s", homeDir, ON_OPTIONS_DIR, ON_THINGS_TO_REMEMBER_FILENAME);
 
     FILE *f = fopen(thingsToRememberFile, "w");
     if (f == NULL)
-        return 3;
+        return ON_FILE_WRITE_ERROR;
 
     for (int i = 0; i < userInput->numberOfThingsRemembered; i++)
         fprintf(f, "%lu %s\n", userInput->thingsRemembered[i].timesRemembered, userInput->thingsRemembered[i].thing);
