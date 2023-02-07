@@ -728,7 +728,7 @@ int printLatestPriceOptions(ScreenState *screen, json_t *root)
                 interpretDate(start, &startDate);
             Date stopDate = {0};
             interpretDate("today", &stopDate);
-            int pres = polygonIoVolatility(screen, uticker, startDate, stopDate, &uvolatility);
+            int pres = polygonIoVolatility(NULL, uticker, startDate, stopDate, &uvolatility);
 
             if (pres == 0)
             {
