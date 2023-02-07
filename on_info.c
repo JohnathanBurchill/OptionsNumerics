@@ -103,9 +103,7 @@ FunctionValue licenseFunction(ScreenState *screen, FunctionValue notUsed)
         /* Check for errors */
         if (res == CURLE_OK && data.response != NULL)
         {
-            struct winsize w;
-            ioctl(0, TIOCGWINSZ, &w);
-            int height = w.ws_row;
+            int height = screen->mainWindowViewHeight;
             int lineCount = 0;
             char action = 0;
             int maxLineLength = 0;
@@ -114,6 +112,7 @@ FunctionValue licenseFunction(ScreenState *screen, FunctionValue notUsed)
             while (end != NULL)
             {
                 maxLineLength=0;
+                prepareForALotOfOutput(screen, height - 1);
                 while (end != NULL && lineCount < height - 1)
                 {
                     *end = 0;
@@ -129,6 +128,7 @@ FunctionValue licenseFunction(ScreenState *screen, FunctionValue notUsed)
 
                 if (action == 'q')
                     break;
+
 
                 lineCount = 0;
             }

@@ -849,15 +849,11 @@ int polygonIoPriceHistory(ScreenState *screen, char *ticker, Date startDate, Dat
     int day = 0;
 
     json_t *entry;
-    for (int i = 0; i < json_array_size(results); i++)
+    long nEntries = json_array_size(results);
+    prepareForALotOfOutput(screen, nEntries);
+    for (int i = 0; i < nEntries; i++)
     {
         entry = json_array_get(results, i);
-        if (!json_is_object(entry))
-        {
-            print(screen, screen->mainWindow, "Invalid JSON entry %d\n", i);
-            json_decref(root);
-            return 2;
-        }
         t = (time_t) json_integer_value(json_object_get(entry, "t")) / 1000;
         volume = json_number_value(json_object_get(entry, "v"));
         vwap = json_number_value(json_object_get(entry, "vw"));
