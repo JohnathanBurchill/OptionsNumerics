@@ -81,6 +81,8 @@ FunctionValue pioVolatilityFunction(ScreenState *screen, FunctionValue arg);
 FunctionValue pioLatestPriceFunction(ScreenState *screen, FunctionValue arg);
 FunctionValue pioPreviousCloseFunction(ScreenState *screen, FunctionValue arg);
 
+FunctionValue pioStreamFunction(ScreenState *screen, FunctionValue arg);
+
 FunctionValue fredSOFRFunction(ScreenState *screen, FunctionValue arg);
 
 FunctionValue questradeConnectionFunction(ScreenState *screen, FunctionValue arg);

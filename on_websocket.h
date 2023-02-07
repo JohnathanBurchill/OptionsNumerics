@@ -32,10 +32,13 @@ static size_t polygonIoWssCallback(char *data, size_t size, size_t nmemb, void *
 
 int polygonIoParseWssFrame(WssData *wssData);
 
-int polygonIoStreamConnect(char *socketName);
+int polygonIoStreamConnect(ScreenState *screen, char *socketName, char *timing);
 int polygonIoStreamAuthenticate(WssData *wssData);
 
-int polygonIoStreamSubscribe(WssData *wssData, char *channel);
+int polygonIoStreamSubscribe(ScreenState *screen, char *channel);
 int polygonIoStreamUnsubscribe(WssData *wssData, char *channel);
+
+void updateWssStreamContent(void);
+void wssCleanup(void);
 
 #endif // _ON_WEBSOCKET_H

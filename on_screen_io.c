@@ -19,6 +19,7 @@
 #include "on_config.h"
 #include "on_commands.h"
 #include "on_utilities.h"
+#include "on_websocket.h"
 
 #include <stdbool.h>
 #include <stdlib.h>
@@ -39,19 +40,22 @@ int initScreen(ScreenState *screen)
 
     int status = OK;
     initscr();
+    screen->streamWindowHeight = 7;
     screen->statusHeight = 1;
-    screen->statusWindow = newwin(screen->statusHeight, COLS, 0, 0);
-    status |= (screen->statusWindow == NULL);
-    status |= wattron(screen->statusWindow, A_REVERSE);
-    status |= wrefresh(screen->statusWindow);
+    screen->mainWindowViewHeight = LINES - screen->statusHeight - screen->streamWindowHeight;
 
-    screen->streamWindowHeight = 1;
     screen->streamWindow = newwin(screen->streamWindowHeight, COLS, 0, 0);
     status |= (screen->streamWindow == NULL);
 
-    screen->mainWindowViewHeight = LINES - screen->statusHeight - screen->streamWindowHeight;
+    screen->statusWindow = newwin(screen->statusHeight, COLS, screen->streamWindowHeight, 0);
+    status |= (screen->statusWindow == NULL);
+    status |= wattron(screen->statusWindow, A_REVERSE);
+    status |= wrefresh(screen->statusWindow);
+    // status |= nodelay(screen->statusWindow, true);
+
     screen->mainWindow = newpad(ON_BUFFERED_LINES + 500, ON_BUFFERED_LINE_LENGTH);
     status |= (screen->mainWindow == NULL);
+    // status |= nodelay(screen->mainWindow, true);
 
     status |= noecho();
     status |= raw();
@@ -59,10 +63,13 @@ int initScreen(ScreenState *screen)
     status |= keypad(screen->mainWindow, true);
     status |= intrflush(NULL, false);
     status |= scrollok(screen->mainWindow, true);
+    status |= scrollok(screen->streamWindow, true);
 
     screen->lastSearchResultLine = 0;
 
     status |= initUserInput(screen->userInput);
+
+    curs_set(2);
 
     return (status << 1);
 
@@ -231,7 +238,6 @@ char *readInput(ScreenState *screen, WINDOW *win, char *prompt, int flags)
 
     while (running)
     {
-
         canScroll = (((ON_READINPUT_SCROLL & flags) || (ON_READINPUT_ALL & flags)) && screen->mainWindowLines > LINES);
 
         if (!statusLineMsg && win != screen->statusWindow && ((ON_READINPUT_STATUS_WINDOW & flags) || (ON_READINPUT_ALL & flags)))
@@ -247,10 +253,11 @@ char *readInput(ScreenState *screen, WINDOW *win, char *prompt, int flags)
             wclrtoeol(screen->statusWindow);
             wrefresh(screen->statusWindow);
         }
+
         if (ON_READINPUT_SEARCH & flags)
-            prefresh(screen->mainWindow, screen->mainWindowTopLine, 0, 1, 0, LINES - 1, COLS - 1);
+            prefresh(screen->mainWindow, screen->mainWindowTopLine, 0, screen->statusHeight + screen->streamWindowHeight, 0, LINES - 1, COLS - 1);
         if (is_pad(win))
-            prefresh(win, screen->mainWindowTopLine, 0, 1, 0, LINES - 1, COLS - 1);
+            prefresh(win, screen->mainWindowTopLine, 0, screen->statusHeight + screen->streamWindowHeight, 0, LINES - 1, COLS - 1);
         else
             wrefresh(win);
 
@@ -261,11 +268,13 @@ char *readInput(ScreenState *screen, WINDOW *win, char *prompt, int flags)
             screen->mainWindowViewHeight = LINES - screen->statusHeight;
             continue;
         }
-        else if (key == ERR && !scrolling)
+        else if (key == ERR)
         {
-            scrollRate = ON_SCROLL_RATE;
-            previousScroll = -1;
-            usleep(250);
+            if (!scrolling)
+            {
+                scrollRate = ON_SCROLL_RATE;
+                previousScroll = -1;
+            }
             continue;
         }
         else if (ON_READINPUT_ONESHOT & flags)
@@ -622,6 +631,7 @@ int restoreScreenHistory(ScreenState *screen)
     FILE *sessionsLog = NULL;
     screen->mainWindowLines = 1; // For the prompt
     int nLines = 0;
+    int linesToSkip = 0;
     int status = 0;
     if (access(sessionsFile, R_OK) == 0)
     {
@@ -632,17 +642,25 @@ int restoreScreenHistory(ScreenState *screen)
             char *res = fgets(lineBuf, ON_BUFFERED_LINE_LENGTH, sessionsLog);
             while (res != NULL)
             {
-                if (screen->mainWindowLines >= ON_BUFFERED_LINES)
-                    wscrl(screen->mainWindow, 1);
-                print(screen, screen->mainWindow, "%s", lineBuf);
-                res = fgets(lineBuf, ON_BUFFERED_LINE_LENGTH, sessionsLog);
                 nLines++;
+                res = fgets(lineBuf, ON_BUFFERED_LINE_LENGTH, sessionsLog);
+            }
+
+            fseek(sessionsLog, 0, SEEK_SET);
+            linesToSkip = nLines - ON_BUFFERED_LINES;
+            if (linesToSkip < 0)
+                linesToSkip = 0;
+            for (int l = 0; l < nLines; l++)
+            {
+                res = fgets(lineBuf, ON_BUFFERED_LINE_LENGTH, sessionsLog);
+                if (l >= linesToSkip)
+                    print(screen, screen->mainWindow, "%s", lineBuf);
             }
             fclose(sessionsLog);
         }
     }
 
-    return nLines;
+    return nLines - linesToSkip;
 }
 
 int saveScreenHistory(ScreenState *screen)
@@ -666,12 +684,13 @@ int saveScreenHistory(ScreenState *screen)
         for (int i = screen->mainWindowLines > ON_BUFFERED_LINES ? screen->mainWindowLines - ON_BUFFERED_LINES : 0; i < screen->mainWindowLines; i++)
         {
             mvwinnstr(screen->mainWindow, i, 0, lineBuf, ON_BUFFERED_LINE_LENGTH);
-            // Do not print traling spaces
+            // Do not print trailing spaces
             lineLength = ON_BUFFERED_LINE_LENGTH;
             while (lineLength > 0 && lineBuf[lineLength-1] == ' ')
                 lineLength--;
             lineBuf[lineLength] = '\0';
-            fprintf(sessionsLog, "%s\n", lineBuf);
+            if (strlen(lineBuf) > 0)
+                fprintf(sessionsLog, "%s\n", lineBuf);
         }
         fclose(sessionsLog);
     }

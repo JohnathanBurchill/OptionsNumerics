@@ -17,6 +17,8 @@
 #ifndef _ON_REMOTE_H
 #define _ON_REMOTE_H
 
+#include "on_state.h"
+
 #include <stdbool.h>
 #include <sys/types.h>
 
@@ -36,7 +38,8 @@ typedef struct wssData
     bool connected;
     bool authenticated;
     char **subscriptions;
-    int nSubscriptions;    
+    int nSubscriptions;  
+    ScreenState *screen;
 } WssData;
 
 

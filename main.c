@@ -34,6 +34,13 @@ static void interrupthandler(int sig)
     running = 0;
 }
 
+static void check_wss(int sig)
+{
+    (void)sig;
+    updateWssStreamContent();
+    return;
+}
+
 int main(void)
 {
 
@@ -53,6 +60,10 @@ int main(void)
     intact.sa_handler = interrupthandler;
     sigaction(SIGINT, &intact, NULL);
 
+    struct sigaction wssact = {0};
+    wssact.sa_handler = check_wss;
+    sigaction(SIGALRM, &wssact, NULL);
+
     CURLcode curlGlobal = curl_global_init(CURL_GLOBAL_ALL);
     if (curlGlobal != 0)
         mvwprintw(screen.statusWindow, 0, 1, "Internet unavailable. Some functions will not work.\n");
@@ -60,18 +71,18 @@ int main(void)
 
     FunctionValue argument = FV_OK;
 
+    reviseThingsToRemember(screen.userInput);
+
+    checkWebSocketSupport(&screen);
+
     int linesRestored = restoreScreenHistory(&screen);
     // Show about message if there is no previous log
     if (linesRestored == 0)
         aboutFunction(&screen, argument);
     else
-        print(&screen, screen.mainWindow, "%s%d lines of history restored\n", ON_READING_CUE, linesRestored);
+        print(&screen, screen.mainWindow, "%s\n", ON_READING_CUE);
 
-    reviseThingsToRemember(screen.userInput);
-
-    checkWebSocketSupport(&screen);
-
-    timeFunction(&screen, (FunctionValue)"New session started at ");
+    timeFunction(&screen, (FunctionValue)"Options Numerics started at ");
     print(&screen, screen.mainWindow, "%s\n", ON_READING_CUE);
 
     while (running)
@@ -115,8 +126,9 @@ int main(void)
             }
         }
         userInput.cmd[0] = '\0';
-        // resetPromptPosition(&screen, false);
     }
+
+    wssCleanup();
 
     curl_global_cleanup();
 
@@ -125,7 +137,8 @@ int main(void)
 
     freeCommands(userInput.commands);
 
-    timeFunction(&screen, (FunctionValue)"Session stopped at ");
+    print(&screen, screen.mainWindow, "%s\n", ON_READING_CUE);
+    timeFunction(&screen, (FunctionValue)"Options Numerics stopped at ");
 
     saveScreenHistory(&screen);
 
