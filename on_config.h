@@ -24,6 +24,7 @@
 #define ON_API_TOKENS_DIR "secrets"
 
 #define ON_SESSIONS_LOG "on_sessions_log.txt"
+#define ON_STREAMS_LOG "on_streams.txt"
 
 #define ON_CMD_LENGTH 1000
 

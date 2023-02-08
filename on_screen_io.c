@@ -40,11 +40,11 @@ int initScreen(ScreenState *screen)
 
     int status = OK;
     initscr();
-    screen->streamWindowHeight = 7;
+    screen->streamWindowHeight = 1;
     screen->statusHeight = 1;
     screen->mainWindowViewHeight = LINES - screen->statusHeight - screen->streamWindowHeight;
 
-    screen->streamWindow = newwin(screen->streamWindowHeight, COLS, 0, 0);
+    screen->streamWindow = newwin(LINES / 2, COLS, 0, 0);
     status |= (screen->streamWindow == NULL);
 
     screen->statusWindow = newwin(screen->statusHeight, COLS, screen->streamWindowHeight, 0);

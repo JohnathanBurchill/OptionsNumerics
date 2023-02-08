@@ -74,7 +74,9 @@ int initCommands(Command **commands)
 
         {"Polygon.IO", "previous_close", "pc", "prints a stock's or option's previous close", "previous_close <ticker>", pioPreviousCloseFunction, FUNCTION_CHARSTAR, FUNCTION_STATUS_CODE, {"Previous close data for a stock:", "GME", NULL, true}, false},
 
-        {"Polygon.IO", "stream", NULL, "stream a stock's or option's latest data", "stream <ticker>", pioStreamFunction, FUNCTION_CHARSTAR, FUNCTION_STATUS_CODE, noExample, false},
+        {"Polygon.IO", "stream", "s", "stream a stock's or option's latest data", "stream <ticker1>,<sticker2>,...", pioStreamFunction, FUNCTION_CHARSTAR, FUNCTION_STATUS_CODE, noExample, false},
+
+        {"Polygon.IO", "unstream", "us", "stop streaming a stock's or option's latest data", "unstream <ticker1>,<sticker2>,...", pioUnstreamFunction, FUNCTION_CHARSTAR, FUNCTION_STATUS_CODE, noExample, false},
 
         // FRED
         {"FRED", "fred_sofr", "fs", "prints the latest secured overnight financing rate (SOFR) from FRED", "fred_sofr", fredSOFRFunction, FUNCTION_CHARSTAR, FUNCTION_STATUS_CODE, {"Latest SOFR from FRED:", NULL, NULL, true}, false},

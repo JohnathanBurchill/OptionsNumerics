@@ -1004,7 +1004,7 @@ FunctionValue pioPreviousCloseFunction(ScreenState *screen, FunctionValue arg)
     }
 
     // Call PIO
-    polygonIoPreviousClose(screen, ticker);
+    polygonIoPreviousClose(screen, ticker, NULL, NULL);
 
     free(ticker);
 
@@ -1058,6 +1058,53 @@ FunctionValue pioStreamFunction(ScreenState *screen, FunctionValue arg)
     return FV_OK;
 }
 
+FunctionValue pioUnstreamFunction(ScreenState *screen, FunctionValue arg)
+{
+    if (screen == NULL)
+        return (FunctionValue)ON_NO_SCREEN;
+
+    int status = ON_OK;
+
+    char *input = NULL;
+    char *ticker = NULL;
+
+    char *tkr = arg.charStarValue;
+
+    if (tkr != NULL)
+        ticker = strdup(tkr);
+    else
+        ticker = readInput(screen, screen->mainWindow, "  ticker: ", ON_READINPUT_ALL);
+    if (!ticker)
+        return FV_NOTOK;
+
+    if (tkr == NULL && ticker[0] != 0)
+        memorize(screen->userInput, ticker);
+
+    if (ticker[0] == 0)
+    {
+        print(screen, screen->mainWindow, "  Ticker symbol formats:\n");
+        print(screen, screen->mainWindow, "  %15s : %s\n", "Stock", "sym");
+        print(screen, screen->mainWindow, "  %15s   %5s %s\n", "", "where", "sym is the ticker symbol");
+        print(screen, screen->mainWindow, "  %15s : %s\n", "Option", "O:symYYMMDDXdddddccc");
+        print(screen, screen->mainWindow, "  %15s   %5s %s\n", "", "where", "sym is the ticker symbol");
+        print(screen, screen->mainWindow, "  %15s   %5s %s\n", "", "", "YY is last two digits of expiry year");
+        print(screen, screen->mainWindow, "  %15s   %5s %s\n", "", "", "MM and DD are expiry month and day");
+        print(screen, screen->mainWindow, "  %15s   %5s %s\n", "", "", "X is either C for call or P for put");
+        print(screen, screen->mainWindow, "  %15s   %5s %s\n", "", "", "ddddd is strike price dollars (up to 99999, i.e. $99,999)");
+        print(screen, screen->mainWindow, "  %15s   %5s %s\n", "", "", "ccc is strike price cents times 10");
+        print(screen, screen->mainWindow, "  %15s   %5s %s\n", "", "e.g.", "O:GME230317C00040000 is a GME $40.00 call expiring 17 March 2023");
+
+        free(ticker);
+        return FV_NOTOK;
+    }
+
+    status = polygonIoStreamUnsubscribe(screen, ticker);
+
+    free(ticker);
+
+    return FV_OK;
+
+}
 
 // FRED
 FunctionValue fredSOFRFunction(ScreenState *screen, FunctionValue arg)

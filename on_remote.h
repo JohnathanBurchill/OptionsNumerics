@@ -18,6 +18,7 @@
 #define _ON_REMOTE_H
 
 #include "on_state.h"
+#include "on_dataproviders.h"
 
 #include <stdbool.h>
 #include <sys/types.h>
@@ -37,8 +38,8 @@ typedef struct wssData
     CURL *curl;
     bool connected;
     bool authenticated;
-    char **subscriptions;
-    int nSubscriptions;  
+    PioSubscription *subscriptions;
+    int nSubscriptions;
     ScreenState *screen;
 } WssData;
 

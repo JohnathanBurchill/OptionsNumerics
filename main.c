@@ -38,12 +38,12 @@ static void check_wss(int sig)
 {
     (void)sig;
     updateWssStreamContent();
+    clearWssStreamStatusLine();
     return;
 }
 
 int main(void)
 {
-
     int res = 0;
 
     ScreenState screen = {0};
@@ -84,6 +84,8 @@ int main(void)
 
     timeFunction(&screen, (FunctionValue)"Options Numerics started at ");
     print(&screen, screen.mainWindow, "%s\n", ON_READING_CUE);
+
+    restoreWssStreamList(&screen);
 
     while (running)
     {
@@ -127,6 +129,8 @@ int main(void)
         }
         userInput.cmd[0] = '\0';
     }
+
+    saveWssStreamList();
 
     wssCleanup();
 

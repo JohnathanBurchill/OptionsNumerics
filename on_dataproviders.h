@@ -20,6 +20,7 @@
 #define URL_BUFFER_SIZE 8192
 #define AUTH_HEADER_BUFFER_SIZE 512
 #define JSON_DATA_BUFFER_SIZE 8192
+#define PIO_CHANNEL_LENGTH 64
 
 #include "on_state.h"
 #include "on_parse.h"
@@ -38,6 +39,22 @@ typedef struct {
     double *lows;
     double *closes;
 } PriceData;
+
+typedef struct pioSubscription {
+    char channel[PIO_CHANNEL_LENGTH];
+    double reportedTimeSecs;
+    double previousClose;
+    double dayOpen;
+    double dayVolume;
+    double aggVolume;
+    double aggOpen;
+    double aggHigh;
+    double aggLow;
+    double aggClose;
+    double aggChange;
+    double dayChange;
+    double dayPercentChange;
+} PioSubscription;
 
 int updateQuestradeAccessToken(ScreenState *screen);
 double questradeStockQuote(ScreenState *screen, char *symbol);
@@ -62,7 +79,7 @@ int polygonIoLatestPrice(ScreenState *screen, char *ticker, TickerData *tickerDa
 int printLatestPriceStocks(ScreenState *screen, json_t *root);
 int printLatestPriceOptions(ScreenState *screen, json_t *root);
 
-int polygonIoPreviousClose(ScreenState *screen, char *ticker);
+int polygonIoPreviousClose(ScreenState *screen, char *ticker, double *previousClose, double *previousVolume);
 
 
 #endif // _ON_DATAPROVIDERS_H

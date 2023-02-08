@@ -471,6 +471,7 @@ int polygonIoOptionsChain(ScreenState *screen, char *ticker, char type, double m
     double close = 0;
     double openInterest = 0;
     double prevStrike = 0;
+    double volume = 0;
 
     if (nextPagePtr != NULL && *nextPagePtr != NULL)
     {
@@ -500,7 +501,7 @@ int polygonIoOptionsChain(ScreenState *screen, char *ticker, char type, double m
         return ON_PIO_REST_JSON_NO_ARRAY_ENTRY;
     }
     if (!continuedSearch)
-        print(screen, screen->mainWindow, "%10s %8s %s %s %s %s\n", "Strike", "Expiry", "Bid", "Ask", "Last", "Ticker");
+        print(screen, screen->mainWindow, "%10s %8s %s %s %s %s %s %s\n", "Strike", "Expiry", "Bid", "Ask", "Last", "Volume", "OI", "Ticker");
 
     json_t *details = NULL;
     json_t *quote = NULL;
@@ -524,11 +525,12 @@ int polygonIoOptionsChain(ScreenState *screen, char *ticker, char type, double m
         ask = json_number_value(json_object_get(quote, "ask"));
         dayInfo = json_object_get(entry, "day");
         close = json_number_value(json_object_get(dayInfo, "close"));
+        volume = json_number_value(json_object_get(dayInfo, "volume"));
         if (bid >= minpremium || ask >= minpremium || close >= minpremium)
         {
             if (strike != prevStrike)
                 print(screen, screen->mainWindow, "\n");
-            print(screen, screen->mainWindow, "%8.2lf %15s %.3lf %.3lf %.3lf  %s\n", strike, expiry, bid, ask, close, optionTicker);
+            print(screen, screen->mainWindow, "%8.2lf %15s %.3lf %.3lf %.3lf  %s %7.0lf / %.0lf \n", strike, expiry, bid, ask, close, optionTicker, volume, openInterest);
             prevStrike = strike;
         }
     }
@@ -749,14 +751,19 @@ int printLatestPriceOptions(ScreenState *screen, json_t *root)
 
 }
 
-int polygonIoPreviousClose(ScreenState *screen, char *ticker)
+int polygonIoPreviousClose(ScreenState *screen, char *ticker, double *previousClose, double *previousVolume)
 {
-    if (screen == NULL)
-        return ON_NO_SCREEN;
+    if (screen == NULL && previousClose == NULL && previousVolume == NULL)
+        return ON_MISSING_ARG_POINTER;
 
     if (ticker == NULL)
         return ON_PIO_NO_TICKER_ARG;
     
+    if (previousClose != NULL)
+        *previousClose = nan("");
+    if (previousVolume != NULL)
+        *previousVolume = nan("");
+
     char url[URL_BUFFER_SIZE] = {0};
     sprintf(url, "https://api.polygon.io/v2/aggs/ticker/%s/prev?adjusted=true", ticker);
 
@@ -803,7 +810,13 @@ int polygonIoPreviousClose(ScreenState *screen, char *ticker)
         nTransactions = json_integer_value(json_object_get(entry, "n"));
         timedata = localtime(&t);
 
-        print(screen, screen->mainWindow, "%4d-%02d-%02d vwap: %.2lf, open: %.2lf, high: %.2lf, low: %.2lf, close: %.2lf, vol: %.0lf, trades: %d, shares/trade: %.1lf\n", timedata->tm_year+1900, timedata->tm_mon + 1, timedata->tm_mday, vwap, open, high, low, close, volume, nTransactions, volume / (double)nTransactions);
+        if (previousClose != NULL)
+            *previousClose = close;
+        if (previousVolume != NULL)
+            *previousVolume = volume;
+
+        if (screen != NULL)
+            print(screen, screen->mainWindow, "%4d-%02d-%02d vwap: %.2lf, open: %.2lf, high: %.2lf, low: %.2lf, close: %.2lf, vol: %.0lf, trades: %d, shares/trade: %.1lf\n", timedata->tm_year+1900, timedata->tm_mon + 1, timedata->tm_mday, vwap, open, high, low, close, volume, nTransactions, volume / (double)nTransactions);
         
     }
 

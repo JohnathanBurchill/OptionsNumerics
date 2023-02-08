@@ -82,6 +82,7 @@ FunctionValue pioLatestPriceFunction(ScreenState *screen, FunctionValue arg);
 FunctionValue pioPreviousCloseFunction(ScreenState *screen, FunctionValue arg);
 
 FunctionValue pioStreamFunction(ScreenState *screen, FunctionValue arg);
+FunctionValue pioUnstreamFunction(ScreenState *screen, FunctionValue arg);
 
 FunctionValue fredSOFRFunction(ScreenState *screen, FunctionValue arg);
 

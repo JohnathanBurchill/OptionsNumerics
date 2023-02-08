@@ -17,6 +17,7 @@
 #include "on_websocket.h"
 #include "on_status.h"
 #include "on_screen_io.h"
+#include "on_dataproviders.h"
 
 #include "on_api.h"
 #include "on_remote.h"
@@ -25,6 +26,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #include <curl/curl.h>
@@ -40,6 +42,9 @@ extern volatile sig_atomic_t running;
 int pio_wss_transfers_running = 0;
 CURLM *multi_handle = NULL;
 WssData data = {0};
+
+static long streamWindowStatusCount = 0;
+
 
 // Call at beginning of program
 int checkWebSocketSupport(ScreenState *screen)
@@ -61,6 +66,7 @@ int checkWebSocketSupport(ScreenState *screen)
     if (!wssSupportEnabled)
     {
         mvwprintw(screen->statusWindow, 0, 0, "Your CURL library does not have WebSocket (WSS); streaming disabled.");
+        streamWindowStatusCount = 0;
         return ON_WSS_PROTOCOL_NOT_SUPPORTED;
     }
 
@@ -104,6 +110,12 @@ static size_t polygonIoWssCallback(char *data, size_t size, size_t nmemb, void *
 
 int polygonIoParseWssFrame(WssData *wssData)
 {
+    if (wssData == NULL)
+        return ON_MISSING_ARG_POINTER;
+
+    if (wssData->screen == NULL)
+        return ON_NO_SCREEN;
+
     int status = 0;
     json_error_t error = {0};
     if (wssData->frame == NULL)
@@ -120,6 +132,7 @@ int polygonIoParseWssFrame(WssData *wssData)
         json_decref(root);
         goto cleanup;
     }
+    // TODO handle more than one entry - could have multiple messages
     json_t *entry = json_array_get(root, 0);
     if (!json_is_object(entry))
     {
@@ -129,20 +142,74 @@ int polygonIoParseWssFrame(WssData *wssData)
     }
     char *jsonstatus = (char *)json_string_value(json_object_get(entry, "status"));
     char *msg = (char *)json_string_value(json_object_get(entry, "message"));
+    // if (jsonstatus != NULL)
+    //     print(wssData->screen, wssData->screen->streamWindow, "Polygon.IO WSS status: %s\n", jsonstatus);
+    if (msg != NULL)
+    {
+        mvwprintw(wssData->screen->streamWindow, wssData->screen->streamWindowHeight - 1, 0, "%s", msg);
+        wclrtoeol(wssData->screen->streamWindow);
+        streamWindowStatusCount = 0;
+    }
     if (jsonstatus != NULL && msg != NULL)
     {
         if (strcmp("connected", jsonstatus) == 0 && strcmp("Connected Successfully", msg) == 0)
         {
             status = ON_OK;
-            wprintw(data.screen->streamWindow, "Connected to Polygon.IO Websocket\n");
+            mvwprintw(wssData->screen->streamWindow, wssData->screen->streamWindowHeight - 1, 0, "Connected to Polygon.IO Websocket");
+            streamWindowStatusCount = 0;
+            // wprintw(wssData->screen->streamWindow, "Connected to Polygon.IO Websocket\n");
             wssData->connected = true;
         }
         else if (strcmp("auth_success", jsonstatus) == 0 && strcmp("authenticated", msg) == 0)
         {
             // Authenticated
-            wprintw(data.screen->streamWindow, "Authenticated with Polygon.IO Websocket\n");
+            mvwprintw(wssData->screen->streamWindow, wssData->screen->streamWindowHeight - 1, 0, "Authenticated with Polygon.IO Websocket");
+            // wprintw(wssData->screen->streamWindow, "Authenticated with Polygon.IO Websocket\n");
+            streamWindowStatusCount = 0;
             status = ON_OK;
             wssData->authenticated = true;
+        }
+        else if (strlen(msg) > 15 && strncmp("subscribed to: ", msg, 15) == 0)
+        {
+            mvwprintw(wssData->screen->streamWindow, wssData->screen->streamWindowHeight - 1, 0, "%s", msg);
+            streamWindowStatusCount = 0;
+            wclrtoeol(wssData->screen->streamWindow);
+            int subscribeCount = 0;
+            for (; subscribeCount < wssData->nSubscriptions; subscribeCount++)
+            {
+                if (strcmp(wssData->subscriptions[subscribeCount].channel, msg + 15) == 0)
+                    break;
+            }
+            if (subscribeCount == wssData->nSubscriptions)
+            {
+                // Add a new subscription
+                void *mem = realloc(wssData->subscriptions, sizeof *wssData->subscriptions * (wssData->nSubscriptions + 1));
+                if (mem == NULL)
+                {
+                    status = ON_HEAP_MEMORY_ERROR;
+                    goto cleanup;
+                }
+                wssData->subscriptions = mem;
+                wssData->nSubscriptions++;
+                bzero(&wssData->subscriptions[wssData->nSubscriptions-1], sizeof *wssData->subscriptions);
+                if (wssData->screen->streamWindowHeight < LINES / 2)
+                {
+                    wssData->screen->streamWindowHeight++;
+                    data.screen->mainWindowViewHeight--;
+                    mvwin(wssData->screen->statusWindow, wssData->screen->streamWindowHeight, 0);
+                    mvwin(wssData->screen->mainWindow, wssData->screen->streamWindowHeight + wssData->screen->statusHeight, 0);
+                    resetPromptPosition(wssData->screen, false);
+                }
+                snprintf(wssData->subscriptions[subscribeCount].channel, PIO_CHANNEL_LENGTH, "%s", msg + 15);
+                // TODO ? Pause timer
+                char *p = msg;
+                while (p && *p != '.')
+                    p++;
+                if (p + 1)
+                {
+                    polygonIoPreviousClose(NULL, p+1, &wssData->subscriptions[subscribeCount].previousClose, NULL);
+                }
+            }
         }
     }
     else
@@ -151,13 +218,8 @@ int polygonIoParseWssFrame(WssData *wssData)
         {
             char *event = NULL;
             char *sym = NULL;
-            double volume = 0;
-            double totalVolume = 0;
-            double dayOpen = 0;
-            double open = 0;
-            double high = 0;
-            double low = 0;
-            double close = 0;
+            PioSubscription *s = NULL;
+
             for (int e = 0; e < json_array_size(root); e++)
             {
                 entry = json_array_get(root, e);
@@ -167,16 +229,26 @@ int polygonIoParseWssFrame(WssData *wssData)
                     if (strcmp("A", event) == 0 || strcmp("AM", event) == 0)
                     {
                         sym = (char *)json_string_value(json_object_get(entry, "sym"));
-                        volume = json_number_value(json_object_get(entry, "v"));
-                        totalVolume = json_number_value(json_object_get(entry, "av"));
-                        dayOpen = json_number_value(json_object_get(entry, "op"));
-                        open = json_number_value(json_object_get(entry, "o"));
-                        high = json_number_value(json_object_get(entry, "h"));
-                        low = json_number_value(json_object_get(entry, "l"));
-                        close = json_number_value(json_object_get(entry, "c"));
-                        wprintw(wssData->screen->streamWindow, "%s: $%.2lf %.0lf / %.0lf\n", sym, close, volume, totalVolume);
-                        wclrtoeol(wssData->screen->streamWindow);
-                        wrefresh(wssData->screen->streamWindow);
+
+                        for (int sInd = 0; sInd < wssData->nSubscriptions; sInd++)
+                        {
+                            s = &wssData->subscriptions[sInd];
+                            if (strncmp(event, s->channel, strlen(event)) == 0 && strcmp(sym, s->channel + strlen(event) + 1) == 0)
+                            {
+                                s->aggVolume = json_number_value(json_object_get(entry, "v"));
+                                s->dayVolume = json_number_value(json_object_get(entry, "av"));
+                                s->dayOpen = json_number_value(json_object_get(entry, "op"));
+                                s->aggOpen = json_number_value(json_object_get(entry, "o"));
+                                s->aggHigh = json_number_value(json_object_get(entry, "h"));
+                                s->aggLow = json_number_value(json_object_get(entry, "l"));
+                                s->aggClose = json_number_value(json_object_get(entry, "c"));
+                                s->reportedTimeSecs = json_number_value(json_object_get(entry, "e")) / 1000.0;
+                                s->aggChange = s->aggClose - s->aggOpen;
+                                s->dayChange = s->aggClose - s->previousClose;
+                                s->dayPercentChange = s->dayChange / s->previousClose * 100.0;
+                                break;
+                            }
+                        }
                     }
                 }
             }
@@ -214,7 +286,7 @@ int polygonIoStreamConnect(ScreenState *screen, char *socketName, char *timing)
     {
         // timing is either "socket" or "delayed"
         sprintf(url, "wss://%s.polygon.io/%s", timing, socketName);
-        print(screen, screen->mainWindow, "url: %s\n", url);
+        // print(screen, screen->mainWindow, "url: %s\n", url);
         // print(mainWindow, "url:\n%s\n", url);
         curl_easy_setopt(data.curl, CURLOPT_URL, url);
         bzero(url, strlen(url));
@@ -225,6 +297,8 @@ int polygonIoStreamConnect(ScreenState *screen, char *socketName, char *timing)
         curl_multi_add_handle(multi_handle, data.curl);
         int count = 0;
         bool authRequested = false;
+        // From curl_multi_wait example
+        int repeats = 0;
         int num_fds = 0;
         do
         {
@@ -232,13 +306,30 @@ int polygonIoStreamConnect(ScreenState *screen, char *socketName, char *timing)
             if (mStatus == CURLM_OK)
                 mStatus = curl_multi_wait(multi_handle, NULL, 0, 10, &num_fds);
 
-            if (data.connected && !data.authenticated && !authRequested)
+            if (mStatus != CURLM_OK)
             {
-                polygonIoStreamAuthenticate(&data);
-                authRequested = true;
+                print(screen, screen->mainWindow, "Failed to connect to Polygon.IO websocket %d %d %d\n", count, data.authenticated, pio_wss_transfers_running);
+                curl_multi_remove_handle(multi_handle, data.curl);
+                return ON_PIO_WSS_NOT_CONNECTED;
             }
+            if (num_fds == 0)
+            {
+                repeats++;
+                if (repeats > 1)
+                    usleep(1000);
+            }
+            else
+                repeats = 0;
+
             count++;
-        } while (pio_wss_transfers_running && mStatus == CURLM_OK && !data.authenticated && count < 300);
+        } while (pio_wss_transfers_running && !data.connected && count < 300);
+
+        if (!data.connected)
+        {
+            print(screen, screen->mainWindow, "Unable to connect to Polygon.IO websocket %d %d %d\n", count, data.authenticated, pio_wss_transfers_running);
+            return ON_PIO_WSS_NOT_CONNECTED;
+        }
+        status = polygonIoStreamAuthenticate(&data);
 
         // Start alarm
         struct itimerval interval = {0};
@@ -248,16 +339,6 @@ int polygonIoStreamConnect(ScreenState *screen, char *socketName, char *timing)
         interval.it_value.tv_usec = 100000;
         setitimer(ITIMER_REAL, &interval, NULL);
 
-        if (!data.connected)
-        {
-            print(screen, screen->mainWindow, "Unable to connect to Polygon.IO websocket %d %d %d\n", count, data.authenticated, pio_wss_transfers_running);
-            return ON_PIO_WSS_NOT_CONNECTED;
-        }
-        else if (!data.authenticated)
-        {
-            print(screen, screen->mainWindow, "Unable to authenticate to Polygon.IO websocket\n");
-            return ON_PIO_WSS_NOT_AUTHENTICATED;
-        }
 
     }
 cleanup:
@@ -292,7 +373,6 @@ int polygonIoStreamAuthenticate(WssData *wssData)
 
 }
 
-
 int polygonIoStreamSubscribe(ScreenState *screen, char *channel)
 {
     if (screen == NULL)
@@ -302,22 +382,30 @@ int polygonIoStreamSubscribe(ScreenState *screen, char *channel)
         return ON_PIO_WSS_NO_CHANNEL;
 
     int status = ON_OK;
-
+    char source[8] = {0};
+ 
     if (!data.authenticated)
     {
         if (strncmp("O:", channel, 2) == 0)
-            status = polygonIoStreamConnect(screen, "options", "socket");
+            snprintf(source, 8, "%s", "options");
         else if (strncmp("X:", channel, 2) == 0)
-            status = polygonIoStreamConnect(screen, "crypto", "delayed");
+            snprintf(source, 8, "%s", "crypto");
         else if (strncmp("C:", channel, 2) == 0)
-            status = polygonIoStreamConnect(screen, "forex", "delayed");
+            snprintf(source, 8, "%s", "forex");
         else
-            status = polygonIoStreamConnect(screen, "stocks", "delayed");
+            snprintf(source, 8, "%s", "stocks");
+
+        status = polygonIoStreamConnect(screen, source, "delayed");
+        if (status != ON_OK)
+            status = polygonIoStreamConnect(screen, source, "socket");
+
     }
+
+    // print(screen, screen->mainWindow, "connection status: %d\n", status);
 
     // Subscribe to a channel
     char subscribe[1024] = {0};
-    sprintf(subscribe, "{\"action\":\"subscribe\",\"params\":\"A.%s\"}", channel);
+    sprintf(subscribe, "{\"action\":\"subscribe\",\"params\":\"%s\"}", channel);
     size_t responseLength = strlen(subscribe) + 1;
     size_t sent = 0;
     CURLcode res = curl_ws_send(data.curl, subscribe, responseLength, &sent, 0, CURLWS_TEXT);
@@ -325,27 +413,89 @@ int polygonIoStreamSubscribe(ScreenState *screen, char *channel)
     return ON_OK;
 }
 
-int polygonIoStreamUnsubscribe(WssData *wssData, char *channel)
+int polygonIoStreamUnsubscribe(ScreenState *screen, char *channel)
 {
-    if (!wssData->authenticated)
+    if (!data.authenticated)
         return ON_PIO_WSS_NOT_AUTHENTICATED;
-    if (wssData == NULL)
-        return ON_PIO_WSS_NO_DATA;
     if (channel == NULL)
         return ON_PIO_WSS_NO_CHANNEL;
 
-    // Subscribe to a channel
-    char unsubscribe[1024] = {0};
-    sprintf(unsubscribe, "{\"action\":\"unsubscribe\",\"params\":\"A.%s\"}", channel);
-    size_t responseLength = strlen(unsubscribe) + 1;
-    size_t sent = 0;
-    CURLcode res = curl_ws_send(wssData->curl, unsubscribe, responseLength, &sent, 0, CURLWS_TEXT);
-
     int status = ON_OK;
+
+    bool removeAll = strcasecmp("all", channel) == 0;
+
+    // Unsubscribe from a channel
+    char unsubscribe[1024] = {0};
+    size_t responseLength = 0;
+    size_t sent = 0;
+    CURLcode res = 0;
+
+    char *channels = strdup(channel);
+    if (channels == NULL)
+        return ON_HEAP_MEMORY_ERROR;
+    
+    // based on strsep manual page
+    char *token = NULL;
+    int nRemoved = 0;
+    while ((token = strsep(&channels, ",")) != NULL)
+    {
+        for (int i = data.nSubscriptions - 1; i >= 0; i--)
+        {
+            if (strcmp(token, data.subscriptions[i].channel) == 0 || removeAll)
+            {
+                nRemoved++;
+                sprintf(unsubscribe, "{\"action\":\"unsubscribe\",\"params\":\"%s\"}", data.subscriptions[i].channel);
+                responseLength = strlen(unsubscribe) + 1;
+                sent = 0;
+                res = curl_ws_send(data.curl, unsubscribe, responseLength, &sent, 0, CURLWS_TEXT);
+                if (i < data.nSubscriptions - 1)
+                {
+                    memmove(&data.subscriptions[i], &data.subscriptions[i+1], (sizeof *data.subscriptions) * (data.nSubscriptions - i - 1));
+                }
+                data.nSubscriptions--;
+            }
+        }
+        if (data.nSubscriptions > 0)
+        {
+            void *mem = realloc(data.subscriptions, (sizeof *data.subscriptions) * data.nSubscriptions);
+            if (mem == NULL)
+            {
+                status = ON_HEAP_MEMORY_ERROR;
+                goto cleanup;
+
+            }
+            data.subscriptions = mem;
+        }
+        else
+        {
+            free(data.subscriptions);
+            data.subscriptions = NULL;
+        }
+        if (data.screen->streamWindowHeight > 2)
+        {
+            data.screen->streamWindowHeight -= nRemoved;
+            data.screen->mainWindowViewHeight += nRemoved;
+            mvwin(data.screen->statusWindow, data.screen->streamWindowHeight, 0);
+            mvwin(data.screen->mainWindow, data.screen->streamWindowHeight + data.screen->statusHeight, 0);
+            wmove(data.screen->streamWindow, data.nSubscriptions, 0);
+            wclrtobot(data.screen->streamWindow);
+            resetPromptPosition(data.screen, false);
+        }
+        
+    }
+
+cleanup:
+
+    if (nRemoved > 0)
+        werase(screen->streamWindow);
+
+    free(channels);
+
     if (res != CURLE_OK)
         status = ON_PIO_WSS_LIBCURL_ERROR;
     return status;
 }
+
 void updateWssStreamContent(void)
 {
     CURLMcode mStatus = CURLM_OK;
@@ -367,6 +517,69 @@ void updateWssStreamContent(void)
         }
     }
 
+    struct timeval tv = {0};
+    double dt = 0;
+    PioSubscription *s = NULL;
+    int longestLine = 0;
+    int y = 0, x = 0;
+    for (int i = 0; i < data.nSubscriptions; i++)
+    {
+        s = &data.subscriptions[i];
+        if (s->reportedTimeSecs > 0)
+        {
+            mvwprintw(data.screen->streamWindow, i, 0, "%25s: $%.2lf (%+.2lf, %+.2lf%%) %.0lf (%+.0lf) ", s->channel, s->aggClose, s->dayChange, s->dayPercentChange, s->dayVolume, s->aggVolume);
+            getyx(data.screen->streamWindow, y, x);
+            if (x > longestLine)
+                longestLine = x;
+        }
+        else
+            mvwprintw(data.screen->streamWindow, i, 0, "%25s: \"...nothing continued to happen.\"", s->channel);
+        wclrtoeol(data.screen->streamWindow);
+
+    }
+    for (int i = 0; i < data.nSubscriptions; i++)
+    {
+        s = &data.subscriptions[i];
+        gettimeofday(&tv, NULL);
+        if (s->reportedTimeSecs > 0)
+        {
+            dt = tv.tv_sec + tv.tv_usec / 1e6 - s->reportedTimeSecs;
+            if (dt > 60)
+            {
+                dt /= 60.0;
+                mvwprintw(data.screen->streamWindow, i, longestLine, "%.1lf min ago", dt);
+            }
+            else
+                mvwprintw(data.screen->streamWindow, i, longestLine, "%.3lf s ago", dt);
+        }
+        wclrtoeol(data.screen->streamWindow);
+
+
+    }
+    wrefresh(data.screen->streamWindow);
+
+    return;
+}
+
+void clearWssStreamStatusLine(void)
+{
+    static int col = 0;
+
+    if (data.screen && data.screen->streamWindow && streamWindowStatusCount > 49)
+    {
+        wmove(data.screen->streamWindow, data.screen->streamWindowHeight - 1, col);
+        wprintw(data.screen->streamWindow, "%s", "  ");
+        wrefresh(data.screen->streamWindow);
+        col += 2;
+        if (col > 20)
+        {
+            wclrtoeol(data.screen->streamWindow);
+            streamWindowStatusCount = 0;
+            col = 0;
+        }
+    }
+    streamWindowStatusCount++;
+
     return;
 }
 
@@ -377,4 +590,79 @@ void wssCleanup(void)
     data.frame = NULL;
     data.size = 0;
     return;
+}
+
+int saveWssStreamList(void)
+{
+    if (data.screen == NULL)
+        return ON_NO_SCREEN;
+
+    int status = ON_OK;
+
+    char streamsFile[FILENAME_MAX] = {0};
+    char *home = getenv("HOME");
+    if (home != NULL && strlen(home) > 0)
+        snprintf(streamsFile, FILENAME_MAX, "%s/%s/%s", home, ON_OPTIONS_DIR, ON_STREAMS_LOG);
+
+    FILE *streamsLog = fopen(streamsFile, "w");
+    if (streamsLog != NULL)
+    {
+        for (int i = 0; i < data.nSubscriptions; i++)
+        {
+            fprintf(streamsLog, "%s%s", i > 0 ? "," : "", data.subscriptions[i].channel);
+        }
+        fprintf(streamsLog, "\n");
+        fclose(streamsLog);
+    }
+    else
+        status = ON_FILE_WRITE_ERROR;
+
+    return status;
+}
+
+int restoreWssStreamList(ScreenState *screen)
+{
+    if (screen == NULL)
+        return ON_NO_SCREEN;
+
+    if (data.screen == NULL)
+        data.screen = screen;
+
+    int status = ON_OK;
+
+    char streamsFile[FILENAME_MAX] = {0};
+    char *home = getenv("HOME");
+    if (home != NULL && strlen(home) > 0)
+        snprintf(streamsFile, FILENAME_MAX, "%s/%s/%s", home, ON_OPTIONS_DIR, ON_STREAMS_LOG);
+
+    struct stat st = {0};
+    stat(streamsFile, &st);
+    if (st.st_size < 3 || st.st_size > 1000)
+        return ON_FILE_READ_ERROR;
+
+    char *streams = malloc(sizeof *streams * (st.st_size + 1));
+
+    if (streams == NULL)
+        return ON_HEAP_MEMORY_ERROR;
+
+    FILE *streamsLog = fopen(streamsFile, "r");
+    if (streamsLog != NULL)
+    {
+        int r = fread(streams, sizeof *streams, st.st_size, streamsLog);
+        if (r != st.st_size)
+            status = ON_FILE_READ_ERROR;
+        else
+            streams[st.st_size] = '\0';
+
+        fclose(streamsLog);
+    }
+    else
+        status = ON_FILE_WRITE_ERROR;
+
+    status = polygonIoStreamSubscribe(data.screen, streams);
+
+    free(streams);
+
+    return status;
+
 }

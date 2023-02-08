@@ -36,9 +36,13 @@ int polygonIoStreamConnect(ScreenState *screen, char *socketName, char *timing);
 int polygonIoStreamAuthenticate(WssData *wssData);
 
 int polygonIoStreamSubscribe(ScreenState *screen, char *channel);
-int polygonIoStreamUnsubscribe(WssData *wssData, char *channel);
+int polygonIoStreamUnsubscribe(ScreenState *screen, char *channel);
 
 void updateWssStreamContent(void);
+void clearWssStreamStatusLine(void);
 void wssCleanup(void);
+
+int saveWssStreamList(void);
+int restoreWssStreamList(ScreenState *screen);
 
 #endif // _ON_WEBSOCKET_H
