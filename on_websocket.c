@@ -520,7 +520,7 @@ void updateWssStreamContent(void)
     struct timeval tv = {0};
     double dt = 0;
     PioSubscription *s = NULL;
-    int longestLine = 0;
+    static int longestLine = 0;
     int y = 0, x = 0;
     for (int i = 0; i < data.nSubscriptions; i++)
     {
