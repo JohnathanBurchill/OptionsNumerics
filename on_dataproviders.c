@@ -789,6 +789,7 @@ int polygonIoPreviousClose(ScreenState *screen, char *ticker, double *previousCl
     int year = 0;
     int month = 0;
     int day = 0;
+    double sharesPerTrade = 0;
 
     json_t *entry;
     for (int i = 0; i < json_array_size(results); i++)
@@ -809,6 +810,10 @@ int polygonIoPreviousClose(ScreenState *screen, char *ticker, double *previousCl
         close = json_number_value(json_object_get(entry, "c"));
         nTransactions = json_integer_value(json_object_get(entry, "n"));
         timedata = localtime(&t);
+        if (nTransactions != 0)
+            sharesPerTrade = volume / nTransactions;
+        else
+            sharesPerTrade = 0;
 
         if (previousClose != NULL)
             *previousClose = close;
@@ -816,8 +821,12 @@ int polygonIoPreviousClose(ScreenState *screen, char *ticker, double *previousCl
             *previousVolume = volume;
 
         if (screen != NULL)
-            print(screen, screen->mainWindow, "%4d-%02d-%02d vwap: %.2lf, open: %.2lf, high: %.2lf, low: %.2lf, close: %.2lf, vol: %.0lf, trades: %d, shares/trade: %.1lf\n", timedata->tm_year+1900, timedata->tm_mon + 1, timedata->tm_mday, vwap, open, high, low, close, volume, nTransactions, volume / (double)nTransactions);
-        
+        {
+            if (sharesPerTrade >= 2)
+                print(screen, screen->mainWindow, "%4d-%02d-%02d vwap: %.2lf, open: %.2lf, high: %.2lf, low: %.2lf, close: %.2lf, vol: %.0lf, trades: %d, shares/trade: %.1lf\n", timedata->tm_year+1900, timedata->tm_mon + 1, timedata->tm_mday, vwap, open, high, low, close, volume, nTransactions, volume / (double)nTransactions);
+            else
+                print(screen, screen->mainWindow, "%4d-%02d-%02d vwap: %.2lf, open: %.2lf, high: %.2lf, low: %.2lf, close: %.2lf, vol: %.0lf, trades: %d, shares/trade: %.3lf\n", timedata->tm_year+1900, timedata->tm_mon + 1, timedata->tm_mday, vwap, open, high, low, close, volume, nTransactions, volume / (double)nTransactions);
+        }        
     }
 
     json_decref(root);
@@ -860,6 +869,7 @@ int polygonIoPriceHistory(ScreenState *screen, char *ticker, Date startDate, Dat
     int year = 0;
     int month = 0;
     int day = 0;
+    double sharesPerTrade = 0;
 
     json_t *entry;
     long nEntries = json_array_size(results);
@@ -875,8 +885,15 @@ int polygonIoPriceHistory(ScreenState *screen, char *ticker, Date startDate, Dat
         low = json_number_value(json_object_get(entry, "l"));
         close = json_number_value(json_object_get(entry, "c"));
         nTransactions = json_integer_value(json_object_get(entry, "n"));
+        if (nTransactions > 0)
+            sharesPerTrade = volume / nTransactions;
+        else
+            sharesPerTrade = 0;
         timedata = localtime(&t);
-        print(screen, screen->mainWindow, "%s %4d-%02d-%02d vwap: %.2lf, open: %.2lf, high: %.2lf, low: %.2lf, close: %.2lf, vol: %.0lf, trades: %d, shares/trade: %.1lf\n", ticker, timedata->tm_year+1900, timedata->tm_mon + 1, timedata->tm_mday, vwap, open, high, low, close, volume, nTransactions, volume / (double)nTransactions);
+        if (sharesPerTrade >= 2)
+            print(screen, screen->mainWindow, "%4d-%02d-%02d vwap: %.2lf, open: %.2lf, high: %.2lf, low: %.2lf, close: %.2lf, vol: %.0lf, trades: %d, shares/trade: %.1lf\n", timedata->tm_year+1900, timedata->tm_mon + 1, timedata->tm_mday, vwap, open, high, low, close, volume, nTransactions, volume / (double)nTransactions);
+        else
+            print(screen, screen->mainWindow, "%4d-%02d-%02d vwap: %.2lf, open: %.2lf, high: %.2lf, low: %.2lf, close: %.2lf, vol: %.0lf, trades: %d, shares/trade: %.3lf\n", timedata->tm_year+1900, timedata->tm_mon + 1, timedata->tm_mday, vwap, open, high, low, close, volume, nTransactions, volume / (double)nTransactions);
         
     }
 
