@@ -61,13 +61,18 @@ int updateQuestradeAccessToken(ScreenState *screen)
 
     char authorizationHeader[AUTH_HEADER_BUFFER_SIZE] = {0};
 
+    int status = 0;
+
     char *token = loadApiToken("QUESTRADE.apitoken");
     if (token == NULL)
     {
-        char *tmpToken = getpass("  Questrade personal API token: ");
-        saveApiToken("QUESTRADE.apitoken", tmpToken);
-        token = strdup(tmpToken);
-        bzero(tmpToken, strlen(tmpToken));
+        token = readInput(screen, screen->mainWindow, "  Questrade personal API token: ", ON_READINPUT_HIDDEN);
+        if (token == NULL || strlen(token) == 0)
+        {
+            free(token);
+            return ON_INVALID_TOKEN;
+        }
+        saveApiToken("QUESTRADE.apitoken", token);
     }
 
     snprintf(authorizationHeader, 512, "Authorization: Bearer %s", token);
@@ -75,7 +80,6 @@ int updateQuestradeAccessToken(ScreenState *screen)
     free(token);
 
     long httpCode = 0;
-    int status = 0;
 
     curl = curl_easy_init();
     if (curl)
@@ -108,7 +112,7 @@ int updateQuestradeAccessToken(ScreenState *screen)
                 case 401:
                     if (screen != NULL)
                         print(screen, screen->mainWindow, "Access token is invalid.\n");
-                    status = ON_QUESTRADE_INVALID_TOKEN;
+                    status = ON_INVALID_TOKEN;
                     break;
                 case 404:
                     if (screen != NULL)
@@ -162,18 +166,21 @@ int fredSOFR(ScreenState *screen, double *sofr)
     char url[URL_BUFFER_SIZE] = {0};
 
     char authorizationHeader[AUTH_HEADER_BUFFER_SIZE] = {0};
+    int status = ON_OK;
 
     char *token = loadApiToken("FRED.apitoken");
     if (token == NULL)
     {
-        char *tmptoken = getpass("  Federal Reserve Economic Data (FRED) personal API token: ");
-        saveApiToken("FRED.apitoken", tmptoken);
-        token = strdup(tmptoken);
-        bzero(tmptoken, strlen(tmptoken));
+        token = readInput(screen, screen->mainWindow, "  Federal Reserve Economic Data (FRED) personal API token: ", ON_READINPUT_HIDDEN);
+        if (token == NULL || strlen(token) == 0)
+        {
+            status = ON_INVALID_TOKEN;
+            goto cleanup;
+        }
+        saveApiToken("FRED.apitoken", token);
     }
 
     long httpCode = 0;
-    int status = ON_OK;
 
     curl = curl_easy_init();
 
@@ -270,20 +277,21 @@ json_t *polygonIoRESTRequest(ScreenState *screen, const char *requestUrl)
     CURLcode res;
     char url[URL_BUFFER_SIZE] = {0};
 
+    int status = 0;
+
     char *token = loadApiToken("PIO.apitoken");
     if (token == NULL)
     {
-        char *tmptoken = getpass("  Polygon.IO (PIO) personal API token: ");
-        if (tmptoken == NULL || strlen(tmptoken) == 0)
+        token = readInput(screen, screen->mainWindow, "  Polygon.IO (PIO) personal API token: ", ON_READINPUT_HIDDEN);
+        if (token == NULL || strlen(token) == 0)
+        {
+            free(token);
             return NULL;
-
-        saveApiToken("PIO.apitoken", tmptoken);
-        token = strdup(tmptoken);
-        bzero(tmptoken, strlen(tmptoken));
+        }
+        saveApiToken("PIO.apitoken", token);
     }
 
     long httpCode = 0;
-    int status = 0;
 
     curl = curl_easy_init();
 

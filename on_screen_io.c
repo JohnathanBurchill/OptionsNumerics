@@ -24,6 +24,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <stdarg.h>
 #include <signal.h>
 #include <unistd.h>
@@ -262,6 +263,10 @@ char *readInput(ScreenState *screen, WINDOW *win, char *prompt, int flags)
             wrefresh(win);
 
         key = wgetch(win);
+
+        // mvwprintw(screen->statusWindow, 0, 0, "%d", key);
+        // wclrtoeol(screen->statusWindow);
+        // wrefresh(screen->statusWindow);
 
         if (key == KEY_RESIZE)
         {
@@ -579,7 +584,7 @@ char *readInput(ScreenState *screen, WINDOW *win, char *prompt, int flags)
 
             // Insert the character
             getyx(win, cury, curx);
-            if (curx - promptLength < inputLength)
+            if (!(ON_READINPUT_HIDDEN & flags) && (curx - promptLength < inputLength))
             {
                 char *p = userInput->cmd + inputLength + 1;
                 if (p >= userInput->cmd + ON_CMD_LENGTH)
@@ -590,12 +595,9 @@ char *readInput(ScreenState *screen, WINDOW *win, char *prompt, int flags)
                     p--;
                 }
                 *p = key;
-                if (!(ON_READINPUT_HIDDEN & flags))
-                {
-                    waddch(win, key);
-                    mvwprintw(win, cury, curx + 1, "%s", userInput->cmd + curx - promptLength + 1);
-                    wmove(win, cury, curx + 1);
-                }
+                waddch(win, key);
+                mvwprintw(win, cury, curx + 1, "%s", userInput->cmd + curx - promptLength + 1);
+                wmove(win, cury, curx + 1);
             }
             else
             {
@@ -612,9 +614,20 @@ char *readInput(ScreenState *screen, WINDOW *win, char *prompt, int flags)
     }    
 
     if (ON_READINPUT_NO_COPY & flags)
+    {
+        if (ON_READINPUT_HIDDEN & flags)
+            bzero(userInput->cmd, ON_CMD_LENGTH);
         return NULL;
+    }
     else
-        return strdup(userInput->cmd);
+    {
+        char *result = strdup(userInput->cmd);
+        if (ON_READINPUT_HIDDEN & flags)
+        {
+            bzero(userInput->cmd, ON_CMD_LENGTH);
+        }
+        return result;
+    }
 
 }
 

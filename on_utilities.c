@@ -132,19 +132,12 @@ char *nanoSecondsAsStringMustFree(double nanoseconds)
 
     struct tm *t = localtime(&secs);
 
-    struct timezone tz = {0};
-    int r = gettimeofday(NULL, &tz);
-    int utchrdiff = 0;
-    if (r == 0)
-        utchrdiff = -(int)floor((double)tz.tz_minuteswest / 60.0);
-    else
-        utchrdiff = -25;
-
-    if (utchrdiff != -25)
-        snprintf(d, 50, "%d-%02d-%02d %02d:%02d:%02d.%09.0lf (UTC%+02d)", t->tm_year + 1900, t->tm_mon + 1, t->tm_mday, t->tm_hour, t->tm_min, t->tm_sec, subSecs, utchrdiff);
-    else
-        snprintf(d, 50, "%d-%02d-%02d %02d:%02d:%02d.%09.0lf (UTC+?)", t->tm_year + 1900, t->tm_mon + 1, t->tm_mday, t->tm_hour, t->tm_min, t->tm_sec, subSecs);
-
+    time_t zero = 0;
+    struct tm * tmutcoff = gmtime(&zero);
+    time_t utcoff = mktime(tmutcoff);
+    int utchrdiff = utcoff / 3600 + t->tm_isdst;
+    
+    snprintf(d, 50, "%d-%02d-%02d %02d:%02d:%02d.%09.0lf (UTC%+02d)", t->tm_year + 1900, t->tm_mon + 1, t->tm_mday, t->tm_hour, t->tm_min, t->tm_sec, subSecs, utchrdiff);
     return strdup(d);
 }
 

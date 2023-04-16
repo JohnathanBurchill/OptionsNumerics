@@ -355,10 +355,13 @@ int polygonIoStreamAuthenticate(WssData *wssData)
     char *token = loadApiToken("PIO.apitoken");
     if (token == NULL)
     {
-        char *tmptoken = getpass("  Polygon.IO (PIO) personal API token: ");
-        saveApiToken("PIO.apitoken", tmptoken);
-        token = strdup(tmptoken);
-        bzero(tmptoken, strlen(tmptoken));
+        token = readInput(wssData->screen, wssData->screen->mainWindow, "  Polygon.IO (PIO) personal API token: ", ON_READINPUT_HIDDEN);
+        if (token == NULL || strlen(token) == 0)
+        {
+            free(token);
+            return ON_INVALID_TOKEN;
+        }
+        saveApiToken("PIO.apitoken", token);
     }
     sprintf(authenticate, "{\"action\":\"auth\",\"params\":\"%s\"}", token);
     bzero(token, strlen(token));
@@ -367,6 +370,7 @@ int polygonIoStreamAuthenticate(WssData *wssData)
     size_t responseLength = strlen(authenticate) + 1;
     size_t sent = 0;
     CURLcode res = curl_ws_send(wssData->curl, authenticate, responseLength, &sent, 0, CURLWS_TEXT);
+
     bzero(authenticate, sizeof(authenticate));
 
     return ON_OK;
