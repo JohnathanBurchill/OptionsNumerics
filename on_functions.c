@@ -118,17 +118,21 @@ FunctionValue showCommandsFunction(ScreenState *screen, FunctionValue arg)
 
 FunctionValue blackScholesOptionPriceFunction(ScreenState *screen, FunctionValue arg)
 {
+    int status = 0;
+
     if (screen == NULL)
         return (FunctionValue)ON_NO_SCREEN;
 
     double S, K, r, sigma, optionValue, bookValue, timeValue;
-    int year = 0, month = 0, day = 0;
+    Date date = {0};
     int daysToExpire = 0;
     double yearsToExpire = 0.0;
     char type = 0;
 
     char *params = arg.charStarValue;
-
+    char **tokens = NULL;
+    int nTokens = 0;
+    
     // Estimate call or put value from parameters
     char *parameters = NULL;
     if (params != NULL)
@@ -141,20 +145,26 @@ FunctionValue blackScholesOptionPriceFunction(ScreenState *screen, FunctionValue
     if (params == NULL && parameters[0] != 0)
         memorize(screen->userInput, parameters);
 
-    int nParams = sscanf(parameters, "T:%c,S:%lf,E:%4d-%02d-%02d,V:%lf,R:%lf,P:%lf", &type, &K, &year, &month, &day, &sigma, &r, &S);
-    free(parameters);
-    if (nParams != 8)
+    char *keys[] = {"T:", "S:", "E:", "V:", "R:", "P:", 0};
+    tokens = splitStringByKeys(parameters, keys, ',', &nTokens);
+    if (tokens == NULL || nTokens != 6)
     {
-        print(screen, screen->mainWindow, "parameters: T:<C or P>,S:<strike>,E:<yyyy-mm-dd>,V:<volatility %%>,R:<risk-free-rate %%>,P:<underlying-price>\n");
-        return FV_NOTOK;
+        status = 2;
+        goto cleanup;
     }
 
+    type = tokens[0][strlen(keys[0])];
+    K = atof(tokens[1]+strlen(keys[1]));
+    interpretDate(tokens[2]+strlen(keys[2]), &date);
+    sigma = atof(tokens[3] + strlen(keys[3]));
+    r = atof(tokens[4] + strlen(keys[4]));
+    S = atof(tokens[5] + strlen(keys[5]));
+    
     // Not counting weekends. Does not account for holidays
-    Date date = {year, month, day};
     daysToExpire = tradingDaysToExpiry(date);
 
     print(screen, screen->mainWindow, "%25s: $%.2lf\n", "Strike", K);
-    print(screen, screen->mainWindow, "%25s: %4d-%02d-%02d (in %d trading days, %0.1lf weeks)\n", "Expiry", year, month, day, daysToExpire, (double)daysToExpire / 5.0);
+    print(screen, screen->mainWindow, "%25s: %4d-%02d-%02d (in %d trading days, %0.1lf weeks)\n", "Expiry", date.year, date.month, date.day, daysToExpire, (double)daysToExpire / 5.0);
     print(screen, screen->mainWindow, "%25s: %.1lf%%\n", "Volatility", sigma);
     print(screen, screen->mainWindow, "%25s: %.2lf%%\n", "Risk-free rate", r);
     print(screen, screen->mainWindow, "%25s: $%.2lf\n", "Share price", S);
@@ -168,7 +178,7 @@ FunctionValue blackScholesOptionPriceFunction(ScreenState *screen, FunctionValue
     optionValue = blackscholes_option_value(opt, otype);
 
     bookValue = S - K;
-    if (type == PUT)
+    if (otype == PUT)
         bookValue *= -1.0;
     if (bookValue < 0.0)
         bookValue = 0.0;
@@ -178,21 +188,32 @@ FunctionValue blackScholesOptionPriceFunction(ScreenState *screen, FunctionValue
     print(screen, screen->mainWindow, "%25s: $%.2lf (%.0lf%%)\n", "Time value", timeValue, timeValue / optionValue * 100.0);
     print(screen, screen->mainWindow, "%25s: $%.2lf\n", otype == CALL ? "Call value" : "Put value", optionValue);
 
+cleanup:
+    if (status == 2)
+        print(screen, screen->mainWindow, "parameters: T:<C or P>,S:<strike>,E:<yyyy-mm-dd>,V:<volatility %%>,R:<risk-free-rate %%>,P:<underlying-price>\n");
+
+    free(tokens);
+    free(parameters);
+
     return FV_OK;
 }
 
 FunctionValue binomialOptionPriceFunction(ScreenState *screen, FunctionValue arg)
 {
+    int status = 0;
+
     if (screen == NULL)
         return (FunctionValue)ON_NO_SCREEN;
 
     double S, K, r, q, sigma, optionValue, bookValue, timeValue;
-    int year = 0, month = 0, day = 0;
+    Date date = {0};
     int daysToExpire = 0;
     double yearsToExpire = 0.0;
     char type = 0;
 
     char *params = arg.charStarValue;
+    char **tokens = NULL;
+    int nTokens = 0;
 
     // Estimate call or put value from parameters
     char *parameters = NULL;
@@ -206,20 +227,27 @@ FunctionValue binomialOptionPriceFunction(ScreenState *screen, FunctionValue arg
     if (params == NULL && parameters[0] != 0)
         memorize(screen->userInput, parameters);
 
-    int nParams = sscanf(parameters, "T:%c,S:%lf,E:%4d-%02d-%02d,V:%lf,R:%lf,Q:%lf,P:%lf", &type, &K, &year, &month, &day, &sigma, &r, &q, &S);
-    free(parameters);
-    if (nParams != 9)
+    char *keys[] = {"T:", "S:", "E:", "V:", "R:", "Q:", "P:", 0};
+    tokens = splitStringByKeys(parameters, keys, ',', &nTokens);
+    if (tokens == NULL || nTokens != 7)
     {
-        print(screen, screen->mainWindow, "parameters: T:<C or P>,S:<strike>,E:<yyyy-mm-dd>,V:<volatility %%>,R:<risk-free-rate %%>,Q:<dividend-yield %%>,P:<underlying-price>\n");
-        return FV_NOTOK;
+        status = 2;
+        goto cleanup;
     }
 
+    type = tokens[0][strlen(keys[0])];
+    K = atof(tokens[1]+strlen(keys[1]));
+    interpretDate(tokens[2]+strlen(keys[2]), &date);
+    sigma = atof(tokens[3] + strlen(keys[3]));
+    r = atof(tokens[4] + strlen(keys[4]));
+    q = atof(tokens[5] + strlen(keys[5]));
+    S = atof(tokens[6] + strlen(keys[6]));
+
     // Not counting weekends. Does not account for holidays
-    Date date = {year, month, day};
     daysToExpire = tradingDaysToExpiry(date);
 
     print(screen, screen->mainWindow, "%25s: $%.2lf\n", "Strike", K);
-    print(screen, screen->mainWindow, "%25s: %4d-%02d-%02d (in %d trading days, %0.1lf weeks)\n", "Expiry", year, month, day, daysToExpire, (double)daysToExpire / 5.0);
+    print(screen, screen->mainWindow, "%25s: %4d-%02d-%02d (in %d trading days, %0.1lf weeks)\n", "Expiry", date.year, date.month, date.day, daysToExpire, (double)daysToExpire / 5.0);
     print(screen, screen->mainWindow, "%25s: %.1lf%%\n", "Volatility", sigma);
     print(screen, screen->mainWindow, "%25s: %.2lf%%\n", "Risk-free rate", r);
     print(screen, screen->mainWindow, "%25s: %.2lf%%\n", "Dividend yield", q);
@@ -242,6 +270,13 @@ FunctionValue binomialOptionPriceFunction(ScreenState *screen, FunctionValue arg
 
     print(screen, screen->mainWindow, "%25s: $%.2lf (%.1lf%%)\n", "Time value", timeValue, timeValue / optionValue * 100.0);
     print(screen, screen->mainWindow, "%25s: $%.4lf\n", otype == CALL ? "Call value" : "Put value", optionValue);
+
+cleanup:
+    if (status == 2)
+        print(screen, screen->mainWindow, "parameters: T:<C or P>,S:<strike>,E:<yyyy-mm-dd>,V:<volatility %%>,R:<risk-free-rate %%>,Q:<dividend-yield %%>,P:<underlying-price>\n");
+
+    free(tokens);
+    free(parameters);
 
     return FV_OK;
 }
@@ -324,16 +359,22 @@ FunctionValue optionsTimeDecayFunction(ScreenState *screen, FunctionValue arg)
 
 FunctionValue geeksFunction(ScreenState *screen, FunctionValue arg)
 {
+    int status = 0;
+
     if (screen == NULL)
         return (FunctionValue)ON_NO_SCREEN;
 
     double S, K, r, q, sigma, optionValue, bookValue, timeValue;
-    int year = 0, month = 0, day = 0;
+    Date date = {0};
     int daysToExpire = 0;
     double yearsToExpire = 0.0;
     char type = 0;
+    char geek = 0;
+    OptionType otype = CALL;
 
     char *params = arg.charStarValue;
+    char **tokens = NULL;
+    int nTokens = 0;
 
     char *parameters = NULL;
     if (params != NULL)
@@ -345,27 +386,33 @@ FunctionValue geeksFunction(ScreenState *screen, FunctionValue arg)
     if (params == NULL && parameters[0] != 0)
         memorize(screen->userInput, parameters);
 
-    char geek = 0;
-
-    int nParams = sscanf(parameters, "G:%c,T:%c,S:%lf,E:%4d-%02d-%02d,V:%lf,R:%lf,Q:%lf,P:%lf", &geek, &type, &K, &year, &month, &day, &sigma, &r, &q, &S);
-    free(parameters);
-    if (nParams != 10)
+    char *keys[] = {"G:", "T:", "S:", "E:", "V:", "R:", "Q:", "P:", 0};
+    tokens = splitStringByKeys(parameters, keys, ',', &nTokens);
+    if (tokens == NULL || nTokens != 8)
     {
-        print(screen, screen->mainWindow, "parameters: G:<t, d, g, v or a>,T:<C or P>,S:<strike>,E:<yyyy-mm-dd>,V:<volatility %%>,R:<risk-free-rate %%>,Q:<dividend-yield %%>,P:<underlying-price>\n");
-        return FV_NOTOK;
+        status = 2;
+        goto cleanup;
     }
 
+    geek = tokens[0][strlen(keys[0])];
+    type = tokens[1][strlen(keys[1])];
+    K = atof(tokens[2]+strlen(keys[2]));
+    interpretDate(tokens[3]+strlen(keys[3]), &date);
+    sigma = atof(tokens[4] + strlen(keys[4]));
+    r = atof(tokens[5] + strlen(keys[5]));
+    q = atof(tokens[6] + strlen(keys[6]));
+    S = atof(tokens[7] + strlen(keys[7]));
+
     // Not counting weekends. Does not account for holidays
-    Date date = {year, month, day};
     daysToExpire = tradingDaysToExpiry(date);
 
     print(screen, screen->mainWindow, "%25s: $%.2lf\n", "Strike", K);
-    print(screen, screen->mainWindow, "%25s: %4d-%02d-%02d (in %d trading days, %0.1lf weeks)\n", "Expiry", year, month, day, daysToExpire, (double)daysToExpire / 5.0);
+    print(screen, screen->mainWindow, "%25s: %4d-%02d-%02d (in %d trading days, %0.1lf weeks)\n", "Expiry", date.year, date.month, date.day, daysToExpire, (double)daysToExpire / 5.0);
     print(screen, screen->mainWindow, "%25s: %.1lf%%\n", "Volatility", sigma);
     print(screen, screen->mainWindow, "%25s: %.2lf%%\n", "Risk-free rate", r);
     print(screen, screen->mainWindow, "%25s: %.2lf%%\n", "Dividend yield", q);
     print(screen, screen->mainWindow, "%25s: $%.2lf\n", "Share price", S);
-    OptionType otype = CALL;
+
     if (type == 'P')
         otype = PUT;
 
@@ -406,21 +453,33 @@ FunctionValue geeksFunction(ScreenState *screen, FunctionValue arg)
         print(screen, screen->mainWindow, "%25s: $%.6lf/$/$\n", "gamma", result);
     }
 
+cleanup:
+    if (status == 2)
+        print(screen, screen->mainWindow, "parameters: G:<t, d, g, v or a>,T:<C or P>,S:<strike>,E:<yyyy-mm-dd>,V:<volatility %%>,R:<risk-free-rate %%>,Q:<dividend-yield %%>,P:<underlying-price>\n");
+
+    free(tokens);
+    free(parameters);
+
     return FV_OK;
 }
 
 FunctionValue impliedVolatilityFunction(ScreenState *screen, FunctionValue arg)
 {
+    int status = 0;
+
     if (screen == NULL)
         return (FunctionValue)ON_NO_SCREEN;
 
     double S, K, r, q, bid, ask, bidImpliedVolatility = 0, askImpliedVolatility = 0;
-    int year = 0, month = 0, day = 0;
+    Date date = {0};
     int daysToExpire = 0;
     double yearsToExpire = 0.0;
     char type = 0;
+    OptionType otype = CALL;
 
     char *params = arg.charStarValue;
+    char **tokens = NULL;
+    int nTokens = 0;
 
     char *parameters = NULL;
     if (params != NULL)
@@ -433,30 +492,48 @@ FunctionValue impliedVolatilityFunction(ScreenState *screen, FunctionValue arg)
     if (params == NULL && parameters[0] != 0)
         memorize(screen->userInput, parameters);
         
-    int nParams = sscanf(parameters, "T:%c,S:%lf,E:%4d-%02d-%02d,R:%lf,Q:%lf,P:%lf,B:%lf,A:%lf", &type, &K, &year, &month, &day, &r, &q, &S, &bid, &ask);
-    free(parameters);
-    if (nParams != 10)
+    char *keys[] = {"T:", "S:", "E:", "R:", "Q:", "P:", "B:", "A:", 0};
+    tokens = splitStringByKeys(parameters, keys, ',', &nTokens);
+    if (tokens == NULL || nTokens != 8)
     {
-        print(screen, screen->mainWindow, "parameters: T:<type (C or P)>,S:<strike>,E:<yyyy-mm-dd>,R:<risk-free-rate %%>,Q:<dividend-yield %%>,P:<underlying-price>,B:<option-bid-price>,A:<option-ask-price>\n");
-        return FV_NOTOK;
+        status = 2;
+        goto cleanup;
     }
 
+    type = tokens[0][strlen(keys[0])];
+    K = atof(tokens[1]+strlen(keys[1]));
+    interpretDate(tokens[2]+strlen(keys[2]), &date);
+    r = atof(tokens[3] + strlen(keys[3]));
+    q = atof(tokens[4] + strlen(keys[4]));
+    S = atof(tokens[5] + strlen(keys[5]));
+    bid = atof(tokens[6] + strlen(keys[6]));
+    ask = atof(tokens[7] + strlen(keys[7]));
+
+    if (type == 'P')
+        otype = PUT;
+
     // Not counting weekends. Does not account for holidays
-    Date date = {year, month, day};
     daysToExpire = tradingDaysToExpiry(date);
 
-    print(screen, screen->mainWindow, "%25s: %4d-%02d-%02d (in %d trading days, %0.1lf weeks)\n", "Expiry", year, month, day, daysToExpire, (double)daysToExpire / 5.0);
+    print(screen, screen->mainWindow, "%25s: %4d-%02d-%02d (in %d trading days, %0.1lf weeks)\n", "Expiry", date.year, date.month, date.day, daysToExpire, (double)daysToExpire / 5.0);
 
     yearsToExpire = (double)daysToExpire / (double)OPTIONS_TRADING_DAYS_PER_YEAR;
     Option opt = {S, K, r / 100.0, q / 100.0, 0.0, yearsToExpire};
-    int res = binomial_option_implied_volatility(opt, type, bid, &bidImpliedVolatility);
+    int res = binomial_option_implied_volatility(opt, otype, bid, &bidImpliedVolatility);
     if (res != 0)
         return (FunctionValue)res;
-    res = binomial_option_implied_volatility(opt, type, ask, &askImpliedVolatility);
+    res = binomial_option_implied_volatility(opt, otype, ask, &askImpliedVolatility);
     if (res != 0)
         return (FunctionValue)res;
 
     print(screen, screen->mainWindow, "%25s: bid: %.1lf%%, ask %.1lf%%\n", "Implied volatility", bidImpliedVolatility * 100.0, askImpliedVolatility * 100.0);
+
+cleanup:
+    if (status == 2)
+        print(screen, screen->mainWindow, "parameters: T:<type (C or P)>,S:<strike>,E:<yyyy-mm-dd>,R:<risk-free-rate %%>,Q:<dividend-yield %%>,P:<underlying-price>,B:<option-bid-price>,A:<option-ask-price>\n");
+
+    free(tokens);
+    free(parameters);
 
     return FV_OK;
 }
@@ -530,6 +607,8 @@ cleanup:
 
 FunctionValue feesFunction(ScreenState *screen, FunctionValue arg)
 {
+    int status = 0;
+
     if (screen == NULL)
         return (FunctionValue)ON_NO_SCREEN;
 
@@ -540,6 +619,8 @@ FunctionValue feesFunction(ScreenState *screen, FunctionValue arg)
     char oneOrTwo = 0;
 
     char *params = arg.charStarValue;
+    char **tokens = NULL;
+    int nTokens = 0;
 
     char *parameters = NULL;
     if (params != NULL)
@@ -552,9 +633,29 @@ FunctionValue feesFunction(ScreenState *screen, FunctionValue arg)
     if (params == NULL && parameters[0] != 0)
         memorize(screen->userInput, parameters);
 
-    int nParams = sscanf(parameters, "U:%c,N:%d,F:%lf,P:%lf,X:%c", &unitType, &nunits, &flatfee, &perunitfee, &oneOrTwo);
-    free(parameters);
-    if (nParams != 5)
+    char *keys[] = {"U:", "N:", "F:", "P:", "X:", 0};
+    tokens = splitStringByKeys(parameters, keys, ',', &nTokens);
+    if (tokens == NULL || nTokens != 5)
+    {
+        status = 2;
+        goto cleanup;
+    }
+
+    unitType = tokens[0][strlen(keys[0])];
+    nunits = atoi(tokens[1]+strlen(keys[1]));
+    flatfee = atof(tokens[2] + strlen(keys[2]));
+    perunitfee = atof(tokens[3] + strlen(keys[3]));
+    oneOrTwo = tokens[4][strlen(keys[4])];
+
+    double totalfee = flatfee + perunitfee * (double)nunits;
+    if (oneOrTwo == 'T')
+        totalfee *= 2.0;
+
+    print(screen, screen->mainWindow, "%25s: $%.2lf\n", "Total fee", totalfee);
+    print(screen, screen->mainWindow, "%25s: $%.4lf\n", "Per share", totalfee / (double)(nunits * (unitType == 'O' ? 100 : 1)));
+
+cleanup:
+    if (status == 2)
     {
         print(screen, screen->mainWindow, "parameters: U:<S(tock) or O(ption)>,N:<number-of-units>,F:<flat-fee>,P:<per-unit-fee>,X:<O(ne)- or T(wo)- way trip)>\n");
         print(screen, screen->mainWindow, " where U is the unit type (stock or option)\n");
@@ -562,15 +663,10 @@ FunctionValue feesFunction(ScreenState *screen, FunctionValue arg)
         print(screen, screen->mainWindow, "       X is the transaction type, one of:\n");
         print(screen, screen->mainWindow, "         O (one-way buy or sell)\n");
         print(screen, screen->mainWindow, "         T (two-way buy then sell or sell then buy)\n");
-        return FV_NOTOK;
     }
 
-    double totalfee = flatfee + perunitfee * (double)nunits;
-    if (oneOrTwo == 'T')
-        totalfee *=2.0;
-
-    print(screen, screen->mainWindow, "%25s: $%.2lf\n", "Total fee", totalfee);
-    print(screen, screen->mainWindow, "%25s: $%.4lf\n", "Per share", totalfee / (double)(nunits * (unitType == 'O' ? 100 : 1)));
+    free(tokens);
+    free(parameters);
 
     return FV_OK;
 
