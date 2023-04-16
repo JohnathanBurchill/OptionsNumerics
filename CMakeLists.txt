@@ -25,7 +25,7 @@ find_library(JANSSON jansson HINTS /usr/local/lib)
 
 # Find the cURL library
 find_library(CURL curl HINTS /usr/local/lib)
-# include_directories(${CURL_INCLUDE_DIRS})
+include_directories(${CURL_INCLUDE_DIRS})
 
 # CURSES
 find_library(CURSES ncursesw HINTS /usr/local/lib)
