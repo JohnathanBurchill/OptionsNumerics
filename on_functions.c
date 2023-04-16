@@ -210,6 +210,7 @@ FunctionValue binomialOptionPriceFunction(ScreenState *screen, FunctionValue arg
     int daysToExpire = 0;
     double yearsToExpire = 0.0;
     char type = 0;
+    OptionType otype = CALL;
 
     char *params = arg.charStarValue;
     char **tokens = NULL;
@@ -253,7 +254,6 @@ FunctionValue binomialOptionPriceFunction(ScreenState *screen, FunctionValue arg
     print(screen, screen->mainWindow, "%25s: %.2lf%%\n", "Dividend yield", q);
     print(screen, screen->mainWindow, "%25s: $%.2lf\n", "Share price", S);
 
-    OptionType otype = CALL;
     if (type == 'P')
         otype = PUT;
     yearsToExpire = (double)daysToExpire / (double)OPTIONS_TRADING_DAYS_PER_YEAR;
@@ -261,7 +261,7 @@ FunctionValue binomialOptionPriceFunction(ScreenState *screen, FunctionValue arg
     optionValue = binomial_option_value(opt, otype);
 
     bookValue = S - K;
-    if (type == PUT)
+    if (otype == PUT)
         bookValue *= -1.0;
     if (bookValue < 0.0)
         bookValue = 0.0;
